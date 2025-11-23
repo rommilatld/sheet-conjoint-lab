@@ -21,7 +21,7 @@ const StartProject = () => {
   // IMPORTANT: If you're setting up your own instance of this app,
   // update this email to match YOUR service account email from Google Cloud.
   // See SETUP.md for detailed instructions.
-  const serviceAccountEmail = "conjoint-sheets-access@lovable-conjoint.iam.gserviceaccount.com";
+  const serviceAccountEmail = "planbuilder@planbuilder-479123.iam.gserviceaccount.com";
 
   const handleCreateProject = async () => {
     setError("");
@@ -156,14 +156,9 @@ const StartProject = () => {
               <ol className="space-y-2 text-sm text-muted-foreground">
                 <li>1. Create a new Google Sheet or use an existing one</li>
                 <li className="flex items-center gap-2">
-                  <span>2. Share the sheet with:{" "}</span>
+                  <span>2. Share the sheet with: </span>
                   <code className="rounded bg-muted px-1 py-0.5 text-xs">{serviceAccountEmail}</code>
-                  <Button 
-                    variant="ghost" 
-                    size="icon" 
-                    className="h-6 w-6" 
-                    onClick={copyServiceAccountEmail}
-                  >
+                  <Button variant="ghost" size="icon" className="h-6 w-6" onClick={copyServiceAccountEmail}>
                     <Copy className="h-3 w-3" />
                   </Button>
                 </li>
@@ -186,7 +181,9 @@ const StartProject = () => {
                   onChange={(e) => setSheetUrl(e.target.value)}
                   className="mt-2"
                 />
-                <p className="mt-1.5 text-xs text-muted-foreground">Paste the full URL from your browser's address bar</p>
+                <p className="mt-1.5 text-xs text-muted-foreground">
+                  Paste the full URL from your browser's address bar
+                </p>
               </div>
 
               {error && (
