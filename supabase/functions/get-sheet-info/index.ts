@@ -1,42 +1,11 @@
 // @ts-ignore - Supabase edge runtime types
 
+import { decryptProjectKey } from '../_shared/google-sheets.ts';
+
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
-
-async function decryptProjectKey(projectKey: string): Promise<string> {
-  const encryptionSecret = Deno.env.get('ENCRYPTION_SECRET');
-  if (!encryptionSecret) {
-    throw new Error('Missing encryption secret');
-  }
-
-  const base64 = projectKey.replace(/-/g, '+').replace(/_/g, '/');
-  const paddedBase64 = base64 + '='.repeat((4 - (base64.length % 4)) % 4);
-  const combined = Uint8Array.from(atob(paddedBase64), c => c.charCodeAt(0));
-
-  const iv = combined.slice(0, 12);
-  const encrypted = combined.slice(12);
-
-  const encoder = new TextEncoder();
-  const keyData = encoder.encode(encryptionSecret.slice(0, 32));
-  const key = await crypto.subtle.importKey(
-    'raw',
-    keyData,
-    { name: 'AES-GCM' },
-    false,
-    ['decrypt']
-  );
-
-  const decrypted = await crypto.subtle.decrypt(
-    { name: 'AES-GCM', iv },
-    key,
-    encrypted
-  );
-
-  const decoder = new TextDecoder();
-  return decoder.decode(decrypted);
-}
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {

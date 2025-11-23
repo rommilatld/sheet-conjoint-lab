@@ -89,29 +89,47 @@ export async function decryptProjectKey(projectKey: string): Promise<string> {
     throw new Error('Missing encryption secret');
   }
 
-  const base64 = projectKey.replace(/-/g, '+').replace(/_/g, '/');
-  const paddedBase64 = base64 + '='.repeat((4 - (base64.length % 4)) % 4);
-  const combined = Uint8Array.from(atob(paddedBase64), c => c.charCodeAt(0));
+  try {
+    // Convert base64url to standard base64
+    let base64 = projectKey.replace(/-/g, '+').replace(/_/g, '/');
+    
+    // Add padding if needed
+    while (base64.length % 4 !== 0) {
+      base64 += '=';
+    }
 
-  const iv = combined.slice(0, 12);
-  const encrypted = combined.slice(12);
+    // Decode base64 to binary
+    const binaryString = atob(base64);
+    const combined = new Uint8Array(binaryString.length);
+    for (let i = 0; i < binaryString.length; i++) {
+      combined[i] = binaryString.charCodeAt(i);
+    }
 
-  const encoder = new TextEncoder();
-  const keyData = encoder.encode(encryptionSecret.slice(0, 32));
-  const key = await crypto.subtle.importKey(
-    'raw',
-    keyData,
-    { name: 'AES-GCM' },
-    false,
-    ['decrypt']
-  );
+    // Extract IV and encrypted data
+    const iv = combined.slice(0, 12);
+    const encrypted = combined.slice(12);
 
-  const decrypted = await crypto.subtle.decrypt(
-    { name: 'AES-GCM', iv },
-    key,
-    encrypted
-  );
+    // Decrypt
+    const encoder = new TextEncoder();
+    const keyData = encoder.encode(encryptionSecret.slice(0, 32));
+    const key = await crypto.subtle.importKey(
+      'raw',
+      keyData,
+      { name: 'AES-GCM' },
+      false,
+      ['decrypt']
+    );
 
-  const decoder = new TextDecoder();
-  return decoder.decode(decrypted);
+    const decrypted = await crypto.subtle.decrypt(
+      { name: 'AES-GCM', iv },
+      key,
+      encrypted
+    );
+
+    const decoder = new TextDecoder();
+    return decoder.decode(decrypted);
+  } catch (error) {
+    console.error('Decryption error details:', error);
+    throw new Error(`Failed to decrypt project key: ${error instanceof Error ? error.message : 'Unknown error'}`);
+  }
 }
