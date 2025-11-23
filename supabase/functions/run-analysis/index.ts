@@ -69,6 +69,7 @@ function generatePlans(
     const tierIndex = i / (numPlans - 1 || 1); // 0 to 1
     const features: { [key: string]: string } = {};
     let totalUtility = 0;
+    const featureChoices: string[] = [];
     
     attributes.forEach(attr => {
       const levels = sortedLevels[attr.name];
@@ -81,6 +82,15 @@ function generatePlans(
         const selectedLevel = levels[levelIdx];
         features[attr.name] = selectedLevel.level;
         totalUtility += selectedLevel.utility;
+        
+        // Track choice reasoning
+        if (levelIdx === 0) {
+          featureChoices.push(`${attr.name} set to ${selectedLevel.level} for affordability`);
+        } else if (levelIdx === levels.length - 1) {
+          featureChoices.push(`${attr.name} set to ${selectedLevel.level} for maximum value`);
+        } else {
+          featureChoices.push(`${attr.name} balanced at ${selectedLevel.level}`);
+        }
       }
     });
     
@@ -118,12 +128,23 @@ function generatePlans(
       suggestedPrice = Math.round(willingnessToPay * 0.85);
     }
     
+    // Generate simple rationale
+    let rationale = '';
+    if (i === 0) {
+      rationale = 'This entry-level plan offers essential features at the most affordable price point.';
+    } else if (i === numPlans - 1) {
+      rationale = 'This premium plan includes the highest-value features for maximum customer satisfaction.';
+    } else {
+      rationale = 'This mid-tier plan balances value and affordability with a mix of popular features.';
+    }
+    
     plans.push({
       name: planNames[i] || `Plan ${i + 1}`,
       features,
       suggestedPrice,
       willingnessToPay,
-      currency
+      currency,
+      rationale
     });
   }
   
@@ -283,10 +304,17 @@ Deno.serve(async (req) => {
       selectedAlt: parseInt(row[3]),
     }));
     
-    console.log(`Analyzing ${responses.length} responses`);
+    // Count unique response IDs
+    const uniqueResponseIds = new Set(responses.map(r => r.responseId));
+    const totalUniqueResponses = uniqueResponseIds.size;
+    
+    console.log(`Analyzing ${responses.length} response rows from ${totalUniqueResponses} unique respondents`);
     
     // Run analysis
     const results = runConjointAnalysis(responses, attributes, numPlans, pricingStrategy);
+    
+    // Override totalResponses with unique count
+    results.totalResponses = totalUniqueResponses;
     
     // Create analysis timestamp
     const timestamp = new Date().toISOString().replace(/[:.]/g, '-').split('T')[0];

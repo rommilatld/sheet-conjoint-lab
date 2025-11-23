@@ -18,6 +18,7 @@ interface Plan {
   suggestedPrice: number;
   willingnessToPay: number;
   currency?: string;
+  rationale?: string;
 }
 
 interface AnalysisResults {
@@ -474,6 +475,11 @@ export const AnalysisTab = ({ projectKey }: AnalysisTabProps) => {
                             WTP: {currencySymbol}{plan.willingnessToPay.toFixed(2)}
                           </div>
                         </div>
+                        {plan.rationale && (
+                          <p className="text-sm text-muted-foreground mb-4 italic">
+                            {plan.rationale}
+                          </p>
+                        )}
                         <div className="space-y-2">
                           <p className="text-xs font-semibold text-muted-foreground uppercase">Features:</p>
                           {Object.entries(plan.features).map(([attr, level]) => (
