@@ -6,8 +6,8 @@ export async function getGoogleSheetsToken() {
     throw new Error('Missing Google service account credentials');
   }
 
-  // Handle escaped newlines
-  privateKey = privateKey.replace(/\\n/g, '\n');
+  // Handle escaped newlines and normalize
+  privateKey = privateKey.replace(/\\n/g, '\n').trim();
 
   // Create JWT
   const header = {
@@ -31,18 +31,35 @@ export async function getGoogleSheetsToken() {
   const unsignedToken = `${headerBase64}.${claimBase64}`;
 
   try {
-    // Import private key
-    const pemHeader = '-----BEGIN PRIVATE KEY-----';
-    const pemFooter = '-----END PRIVATE KEY-----';
+    // Extract base64 content from PEM format
+    // Remove all PEM headers, footers, and whitespace
+    let pemContents = privateKey
+      .replace(/-----BEGIN PRIVATE KEY-----/g, '')
+      .replace(/-----END PRIVATE KEY-----/g, '')
+      .replace(/-----BEGIN RSA PRIVATE KEY-----/g, '')
+      .replace(/-----END RSA PRIVATE KEY-----/g, '')
+      .replace(/\s/g, '')
+      .trim();
     
-    // Extract the base64 content between headers
-    const pemContents = privateKey
-      .replace(pemHeader, '')
-      .replace(pemFooter, '')
-      .replace(/\s/g, '');
+    if (!pemContents) {
+      throw new Error('No private key content found after PEM parsing');
+    }
+
+    // Validate base64 characters
+    if (!/^[A-Za-z0-9+/=]+$/.test(pemContents)) {
+      console.error('Invalid characters in private key base64');
+      throw new Error('Private key contains invalid base64 characters');
+    }
     
     // Decode base64 to binary
-    const binaryString = atob(pemContents);
+    let binaryString: string;
+    try {
+      binaryString = atob(pemContents);
+    } catch (e) {
+      console.error('Failed to decode private key base64:', e);
+      throw new Error('Invalid base64 encoding in private key');
+    }
+
     const binaryDer = new Uint8Array(binaryString.length);
     for (let i = 0; i < binaryString.length; i++) {
       binaryDer[i] = binaryString.charCodeAt(i);
@@ -87,6 +104,7 @@ export async function getGoogleSheetsToken() {
 
     if (!tokenResponse.ok) {
       const error = await tokenResponse.text();
+      console.error('Token exchange failed:', error);
       throw new Error(`Failed to get access token: ${error}`);
     }
 
