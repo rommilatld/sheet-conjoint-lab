@@ -1,6 +1,6 @@
 // @ts-ignore - Supabase edge runtime types
 
-import { getAttributes } from '../_shared/in-memory-store.ts';
+import { getGoogleSheetsToken } from '../_shared/google-sheets.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -93,8 +93,41 @@ Deno.serve(async (req) => {
 
     const { sheetId, surveyId } = await decryptSurveyToken(surveyToken);
     
-    // Load attributes
-    const attributes = getAttributes(sheetId);
+    // Load attributes from Google Sheets
+    const token = await getGoogleSheetsToken();
+    const response = await fetch(
+      `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/Attributes!A:B`,
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      }
+    );
+
+    if (!response.ok) {
+      throw new Error('Failed to read attributes from Google Sheets');
+    }
+
+    const data = await response.json();
+    const rows = data.values || [];
+    console.log(`Retrieved ${rows.length} attributes for sheet ${sheetId}`);
+
+    // Parse attributes from rows
+    const attributesMap = new Map();
+    for (let i = 1; i < rows.length; i++) {
+      const [name, level] = rows[i];
+      if (name && level) {
+        if (!attributesMap.has(name)) {
+          attributesMap.set(name, []);
+        }
+        attributesMap.get(name).push(level);
+      }
+    }
+
+    const attributes = Array.from(attributesMap.entries()).map(([name, levels]) => ({
+      name,
+      levels,
+    }));
     
     if (attributes.length === 0) {
       throw new Error('No attributes found for this survey');

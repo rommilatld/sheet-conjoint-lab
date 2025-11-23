@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useParams } from "react-router-dom";
 import { Card } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Loader2 } from "lucide-react";
 import { ProjectInfo } from "@/components/workspace/ProjectInfo";
@@ -68,12 +69,21 @@ const Workspace = () => {
       </div>
 
       <Tabs defaultValue="info" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-4 lg:w-auto lg:inline-grid">
-          <TabsTrigger value="info">Project Info</TabsTrigger>
-          <TabsTrigger value="attributes">Attributes</TabsTrigger>
-          <TabsTrigger value="design">Design</TabsTrigger>
-          <TabsTrigger value="survey">Survey</TabsTrigger>
-        </TabsList>
+        <div className="flex items-center justify-between gap-4">
+          <TabsList className="grid w-full grid-cols-4 lg:w-auto lg:inline-grid">
+            <TabsTrigger value="info">Project Info</TabsTrigger>
+            <TabsTrigger value="attributes">Attributes</TabsTrigger>
+            <TabsTrigger value="design">Design</TabsTrigger>
+            <TabsTrigger value="survey">Survey</TabsTrigger>
+          </TabsList>
+          <Button
+            variant="outline"
+            onClick={() => window.location.href = '/'}
+            className="whitespace-nowrap"
+          >
+            Start New Survey
+          </Button>
+        </div>
 
         <TabsContent value="info">
           <ProjectInfo projectKey={projectKey!} sheetUrl={sheetUrl} />
