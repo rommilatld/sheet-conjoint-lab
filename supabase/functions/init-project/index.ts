@@ -22,7 +22,13 @@ Deno.serve(async (req) => {
     const encryptionSecret = Deno.env.get('ENCRYPTION_SECRET');
 
     if (!encryptionSecret) {
-      throw new Error('Missing encryption secret');
+      console.error('ENCRYPTION_SECRET is not configured');
+      throw new Error('Server configuration error: Missing ENCRYPTION_SECRET. Please configure this secret in Lovable Cloud settings.');
+    }
+
+    if (encryptionSecret.length < 32) {
+      console.error('ENCRYPTION_SECRET is too short');
+      throw new Error('Server configuration error: ENCRYPTION_SECRET must be at least 32 characters long.');
     }
 
     // For now, we'll assume the sheet is accessible

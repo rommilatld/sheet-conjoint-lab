@@ -3,7 +3,15 @@ export async function getGoogleSheetsToken() {
   let privateKey = Deno.env.get('GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY');
 
   if (!serviceAccountEmail || !privateKey) {
-    throw new Error('Missing Google service account credentials');
+    console.error('Missing Google service account credentials', {
+      hasEmail: !!serviceAccountEmail,
+      hasKey: !!privateKey
+    });
+    throw new Error(
+      'Server configuration error: Missing Google service account credentials. ' +
+      'Please configure GOOGLE_SERVICE_ACCOUNT_EMAIL and GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY in Lovable Cloud settings. ' +
+      'See SETUP.md for detailed instructions.'
+    );
   }
 
   // Handle escaped newlines and normalize
@@ -119,7 +127,12 @@ export async function getGoogleSheetsToken() {
 export async function decryptProjectKey(projectKey: string): Promise<string> {
   const encryptionSecret = Deno.env.get('ENCRYPTION_SECRET');
   if (!encryptionSecret) {
-    throw new Error('Missing encryption secret');
+    console.error('ENCRYPTION_SECRET is not configured');
+    throw new Error(
+      'Server configuration error: Missing ENCRYPTION_SECRET. ' +
+      'Please configure this secret in Lovable Cloud settings. ' +
+      'See SETUP.md for detailed instructions.'
+    );
   }
 
   try {
