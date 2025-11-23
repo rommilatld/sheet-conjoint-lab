@@ -2,10 +2,21 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { ArrowRight, Lock, Zap, BarChart3, Users } from "lucide-react";
 import { Link } from "react-router-dom";
+import enLogo from "@/assets/en-logo.jpg";
 
 const Index = () => {
   return (
     <div className="min-h-screen">
+      {/* Header */}
+      <header className="border-b bg-card">
+        <div className="container mx-auto px-6 py-4">
+          <div className="flex items-center gap-3">
+            <img src={enLogo} alt="Experiment Nation" className="h-10 w-10" />
+            <h1 className="text-2xl font-bold">Plan Builder by Experiment Nation</h1>
+          </div>
+        </div>
+      </header>
+
       {/* Hero Section */}
       <section className="relative overflow-hidden pt-20 pb-32">
         <div className="absolute inset-0 gradient-subtle opacity-60" />

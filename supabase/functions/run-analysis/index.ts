@@ -19,8 +19,63 @@ interface Attribute {
   levels: string[];
 }
 
+// Generate pricing plans based on utilities
+function generatePlans(numPlans: number, attributes: Attribute[], utilities: { [key: string]: number }) {
+  const plans = [];
+  const planNames = ['Good', 'Better', 'Best', 'Premium', 'Enterprise', 'Starter', 'Professional', 'Ultimate', 'Advanced', 'Elite'];
+  
+  // Sort levels by utility for each attribute
+  const sortedLevels: { [key: string]: Array<{ level: string; utility: number }> } = {};
+  attributes.forEach(attr => {
+    const levels = attr.levels.map(level => ({
+      level,
+      utility: utilities[`${attr.name}:${level}`] || 0
+    })).sort((a, b) => a.utility - b.utility);
+    sortedLevels[attr.name] = levels;
+  });
+  
+  // Generate plans with increasing quality
+  for (let i = 0; i < numPlans; i++) {
+    const tierIndex = i / (numPlans - 1 || 1); // 0 to 1
+    const features: { [key: string]: string } = {};
+    let totalUtility = 0;
+    
+    attributes.forEach(attr => {
+      const levels = sortedLevels[attr.name];
+      if (levels && levels.length > 0) {
+        // Pick level based on tier (low tier = low utility, high tier = high utility)
+        const levelIdx = Math.min(
+          Math.floor(tierIndex * levels.length),
+          levels.length - 1
+        );
+        const selectedLevel = levels[levelIdx];
+        features[attr.name] = selectedLevel.level;
+        totalUtility += selectedLevel.utility;
+      }
+    });
+    
+    // Calculate willingness to pay based on utility
+    // Higher utility = higher WTP. Scale appropriately
+    const basePrice = 10;
+    const utilityMultiplier = 20;
+    const willingnessToPay = Math.max(0, basePrice + totalUtility * utilityMultiplier);
+    
+    // Suggested price is slightly below WTP for good conversion
+    const suggestedPrice = Math.round(willingnessToPay * 0.85);
+    
+    plans.push({
+      name: planNames[i] || `Plan ${i + 1}`,
+      features,
+      suggestedPrice,
+      willingnessToPay
+    });
+  }
+  
+  return plans;
+}
+
 // Simple MNL conjoint analysis using iterative weighted least squares
-function runConjointAnalysis(responses: Response[], attributes: Attribute[]) {
+function runConjointAnalysis(responses: Response[], attributes: Attribute[], numPlans: number) {
   // Count total responses for each attribute level
   const levelCounts: { [key: string]: number } = {};
   const levelTotals: { [key: string]: number } = {};
@@ -66,10 +121,14 @@ function runConjointAnalysis(responses: Response[], attributes: Attribute[]) {
     importances[attr] = (importances[attr] / totalImportance) * 100;
   });
   
+  // Generate plans
+  const plans = generatePlans(numPlans, attributes, utilities);
+  
   return {
     utilities,
     importances,
     totalResponses: responses.length,
+    plans,
   };
 }
 
@@ -79,8 +138,8 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { projectKey } = await req.json();
-    console.log('Running conjoint analysis');
+    const { projectKey, numPlans = 3 } = await req.json();
+    console.log('Running conjoint analysis with', numPlans, 'plans');
 
     const sheetId = await decryptProjectKey(projectKey);
     const token = await getGoogleSheetsToken();
@@ -151,7 +210,7 @@ Deno.serve(async (req) => {
     console.log(`Analyzing ${responses.length} responses`);
     
     // Run analysis
-    const results = runConjointAnalysis(responses, attributes);
+    const results = runConjointAnalysis(responses, attributes, numPlans);
     
     // Create analysis timestamp
     const timestamp = new Date().toISOString().replace(/[:.]/g, '-').split('T')[0];
@@ -205,6 +264,23 @@ Deno.serve(async (req) => {
       analysisRows.push([key, util.toFixed(3)]);
     });
     
+    // Add plans section
+    if (results.plans && results.plans.length > 0) {
+      analysisRows.push([''], ['Recommended Plans'], ['Plan Name', 'Suggested Price', 'Willingness to Pay', 'Features']);
+      
+      results.plans.forEach(plan => {
+        const featuresStr = Object.entries(plan.features)
+          .map(([attr, level]) => `${attr}: ${level}`)
+          .join('; ');
+        analysisRows.push([
+          plan.name,
+          `$${plan.suggestedPrice}`,
+          `$${plan.willingnessToPay.toFixed(2)}`,
+          featuresStr
+        ]);
+      });
+    }
+    
     await fetch(
       `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/${analysisTabName}!A1?valueInputOption=RAW`,
       {
@@ -229,6 +305,7 @@ Deno.serve(async (req) => {
           utilities: results.utilities,
           totalResponses: results.totalResponses,
           analysisTabName,
+          plans: results.plans,
         },
       }),
       {
