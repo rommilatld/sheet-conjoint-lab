@@ -29,3 +29,6 @@ verify_jwt = false
 
 [functions."get-surveys"]
 verify_jwt = false
+
+[functions."run-analysis"]
+verify_jwt = false

@@ -8,6 +8,7 @@ import { ProjectInfo } from "@/components/workspace/ProjectInfo";
 import { AttributesTab } from "@/components/workspace/AttributesTab";
 import { DesignTab } from "@/components/workspace/DesignTab";
 import { SurveyTab } from "@/components/workspace/SurveyTab";
+import { AnalysisTab } from "@/components/workspace/AnalysisTab";
 import { supabase } from "@/integrations/supabase/client";
 
 const Workspace = () => {
@@ -70,11 +71,12 @@ const Workspace = () => {
 
       <Tabs defaultValue="info" className="space-y-6">
         <div className="flex items-center justify-between gap-4">
-          <TabsList className="grid w-full grid-cols-4 lg:w-auto lg:inline-grid">
+          <TabsList className="grid w-full grid-cols-5 lg:w-auto lg:inline-grid">
             <TabsTrigger value="info">Project Info</TabsTrigger>
             <TabsTrigger value="attributes">Attributes</TabsTrigger>
             <TabsTrigger value="design">Design</TabsTrigger>
             <TabsTrigger value="survey">Survey</TabsTrigger>
+            <TabsTrigger value="analysis">Analysis</TabsTrigger>
           </TabsList>
           <Button
             variant="outline"
@@ -99,6 +101,10 @@ const Workspace = () => {
 
         <TabsContent value="survey">
           <SurveyTab projectKey={projectKey!} />
+        </TabsContent>
+
+        <TabsContent value="analysis">
+          <AnalysisTab projectKey={projectKey!} />
         </TabsContent>
       </Tabs>
     </div>

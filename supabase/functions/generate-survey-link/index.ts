@@ -1,6 +1,6 @@
 // @ts-ignore - Supabase edge runtime types
 
-import { decryptProjectKey } from '../_shared/google-sheets.ts';
+import { decryptProjectKey, getGoogleSheetsToken } from '../_shared/google-sheets.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -65,7 +65,81 @@ Deno.serve(async (req) => {
     // Encrypt sheet ID + survey ID into token
     const token = await encryptSurveyToken(sheetId, surveyId);
     
-    console.log('Survey link generated successfully');
+    // Save to Google Sheets Surveys tab
+    const gsToken = await getGoogleSheetsToken();
+    const timestamp = new Date().toISOString();
+    const surveyUrl = `${req.headers.get('origin') || 'https://your-app.com'}/s/${token}`;
+    
+    // Ensure Surveys tab exists
+    try {
+      await fetch(
+        `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}:batchUpdate`,
+        {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${gsToken}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            requests: [
+              {
+                addSheet: {
+                  properties: {
+                    title: 'Surveys',
+                  },
+                },
+              },
+            ],
+          }),
+        }
+      );
+    } catch (e) {
+      // Tab might already exist, continue
+    }
+    
+    // Write header if needed
+    const headerResponse = await fetch(
+      `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/Surveys!A1:D1`,
+      {
+        headers: {
+          Authorization: `Bearer ${gsToken}`,
+        },
+      }
+    );
+    
+    const headerData = await headerResponse.json();
+    if (!headerData.values || headerData.values.length === 0) {
+      await fetch(
+        `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/Surveys!A1:D1?valueInputOption=RAW`,
+        {
+          method: 'PUT',
+          headers: {
+            Authorization: `Bearer ${gsToken}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            values: [['Survey ID', 'Survey Name', 'Survey URL', 'Created At']],
+          }),
+        }
+      );
+    }
+    
+    // Append survey data
+    await fetch(
+      `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/Surveys!A:D:append?valueInputOption=RAW`,
+      {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${gsToken}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          values: [[surveyId, surveyName, surveyUrl, timestamp]],
+        }),
+      }
+    );
+    
+    console.log('Survey link saved to Google Sheets');
 
     return new Response(
       JSON.stringify({ 
