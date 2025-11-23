@@ -27,12 +27,14 @@ interface AnalysisResults {
   analysisTabName: string;
   plans: Plan[];
   currency?: string;
+  priceMismatchWarning?: string;
 }
 
 export const AnalysisTab = ({ projectKey }: AnalysisTabProps) => {
   const [loading, setLoading] = useState(false);
   const [results, setResults] = useState<AnalysisResults | null>(null);
   const [numPlans, setNumPlans] = useState<number>(3);
+  const [pricingStrategy, setPricingStrategy] = useState<'submitted' | 'suggested'>('suggested');
   const { toast } = useToast();
 
   const downloadPDF = () => {
@@ -212,7 +214,11 @@ export const AnalysisTab = ({ projectKey }: AnalysisTabProps) => {
     setLoading(true);
     try {
       const { data, error } = await supabase.functions.invoke('run-analysis', {
-        body: { projectKey, numPlans },
+        body: { 
+          projectKey, 
+          numPlans,
+          pricingStrategy,
+        },
       });
 
       if (error) {
@@ -225,10 +231,19 @@ export const AnalysisTab = ({ projectKey }: AnalysisTabProps) => {
 
       setResults(data.results);
       
-      toast({
-        title: "Analysis Complete!",
-        description: `Results saved to ${data.results.analysisTabName} tab in your Google Sheet`,
-      });
+      // Show warning if there's a price mismatch
+      if (data.results.priceMismatchWarning) {
+        toast({
+          title: "Analysis Complete with Note",
+          description: data.results.priceMismatchWarning,
+          variant: "destructive",
+        });
+      } else {
+        toast({
+          title: "Analysis Complete!",
+          description: `Results saved to ${data.results.analysisTabName} tab in your Google Sheet`,
+        });
+      }
     } catch (err: any) {
       toast({
         title: "Error",
@@ -250,20 +265,66 @@ export const AnalysisTab = ({ projectKey }: AnalysisTabProps) => {
           </p>
         </div>
 
-        <div className="mb-6 max-w-xs">
-          <Label htmlFor="numPlans">Number of Plans to Generate</Label>
-          <Input
-            id="numPlans"
-            type="number"
-            min="1"
-            max="10"
-            value={numPlans}
-            onChange={(e) => setNumPlans(parseInt(e.target.value) || 3)}
-            className="mt-2"
-          />
-          <p className="mt-1 text-xs text-muted-foreground">
-            Generate good, better, best pricing plans (1-10 plans)
-          </p>
+        <div className="space-y-6 mb-6">
+          <div className="max-w-xs">
+            <Label htmlFor="numPlans">Number of Plans to Generate</Label>
+            <Input
+              id="numPlans"
+              type="number"
+              min="1"
+              max="10"
+              value={numPlans}
+              onChange={(e) => setNumPlans(parseInt(e.target.value) || 3)}
+              className="mt-2"
+            />
+            <p className="mt-1 text-xs text-muted-foreground">
+              Generate good, better, best pricing plans (1-10 plans)
+            </p>
+          </div>
+
+          <div>
+            <Label className="text-base mb-3 block">Pricing Strategy</Label>
+            <div className="space-y-3">
+              <div className="flex items-start space-x-3">
+                <input
+                  type="radio"
+                  id="suggested"
+                  name="pricingStrategy"
+                  value="suggested"
+                  checked={pricingStrategy === 'suggested'}
+                  onChange={(e) => setPricingStrategy(e.target.value as 'submitted' | 'suggested')}
+                  className="mt-0.5 h-4 w-4 text-primary focus:ring-primary"
+                />
+                <div className="flex-1">
+                  <Label htmlFor="suggested" className="font-medium cursor-pointer">
+                    Let Plan Builder suggest pricing
+                  </Label>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Uses willingness to pay and utility values to recommend optimal pricing
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-start space-x-3">
+                <input
+                  type="radio"
+                  id="submitted"
+                  name="pricingStrategy"
+                  value="submitted"
+                  checked={pricingStrategy === 'submitted'}
+                  onChange={(e) => setPricingStrategy(e.target.value as 'submitted' | 'suggested')}
+                  className="mt-0.5 h-4 w-4 text-primary focus:ring-primary"
+                />
+                <div className="flex-1">
+                  <Label htmlFor="submitted" className="font-medium cursor-pointer">
+                    Use the submitted pricing levels
+                  </Label>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Uses exact price levels from your survey responses
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
 
         <Button

@@ -220,11 +220,33 @@ export const AttributesTab = ({ projectKey }: AttributesTabProps) => {
                   {attr.levels.map((level, levelIndex) => (
                     <div key={levelIndex} className="flex gap-2">
                       <Input
-                        placeholder={attr.name === "Pricing" ? `e.g., $${(levelIndex + 1) * 10}` : `Level ${levelIndex + 1}`}
+                        placeholder={attr.isPriceAttribute ? "e.g., 9.99" : `Level ${levelIndex + 1}`}
                         value={level}
-                        onChange={(e) =>
-                          updateLevel(attrIndex, levelIndex, e.target.value)
-                        }
+                        onChange={(e) => {
+                          const value = e.target.value;
+                          // If price attribute, only allow numbers and one decimal point with max 2 decimals
+                          if (attr.isPriceAttribute) {
+                            if (value === '' || /^\d*\.?\d{0,2}$/.test(value)) {
+                              updateLevel(attrIndex, levelIndex, value);
+                            }
+                          } else {
+                            updateLevel(attrIndex, levelIndex, value);
+                          }
+                        }}
+                        onBlur={(e) => {
+                          // Validate on blur for price attributes
+                          if (attr.isPriceAttribute && e.target.value.trim()) {
+                            const numValue = parseFloat(e.target.value);
+                            if (isNaN(numValue)) {
+                              toast({
+                                title: "Invalid Price",
+                                description: "Price levels must be numerical values only",
+                                variant: "destructive",
+                              });
+                              updateLevel(attrIndex, levelIndex, "");
+                            }
+                          }
+                        }}
                       />
                       <Button
                         variant="ghost"
