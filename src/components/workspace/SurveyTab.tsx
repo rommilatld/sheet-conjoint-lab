@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-import { Link2, Copy, Loader2, Plus } from "lucide-react";
+import { Link2, Copy, Loader2, Plus, Trash2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -14,10 +14,10 @@ interface SurveyTabProps {
 
 interface Survey {
   id: string;
-  name: string;
-  token: string;
   url: string;
   createdAt: string;
+  introduction: string;
+  question: string;
 }
 
 export const SurveyTab = ({ projectKey }: SurveyTabProps) => {
@@ -41,6 +41,17 @@ export const SurveyTab = ({ projectKey }: SurveyTabProps) => {
 
       if (!error && data && data.surveys) {
         setSurveys(data.surveys);
+        
+        // Load introduction and question from the most recent survey
+        if (data.surveys.length > 0) {
+          const latestSurvey = data.surveys[0];
+          if (latestSurvey.introduction) {
+            setIntroduction(latestSurvey.introduction);
+          }
+          if (latestSurvey.question) {
+            setQuestion(latestSurvey.question);
+          }
+        }
       }
     } catch (error) {
       console.error("Failed to load surveys:", error);
@@ -90,10 +101,10 @@ export const SurveyTab = ({ projectKey }: SurveyTabProps) => {
       
       const newSurvey: Survey = {
         id: data.surveyId,
-        name: introduction.trim().substring(0, 50) + '...',
-        token: data.token,
         url: surveyUrl,
         createdAt: new Date().toISOString(),
+        introduction: introduction.trim(),
+        question: question.trim(),
       };
 
       setSurveys([newSurvey, ...surveys]);
@@ -115,12 +126,40 @@ export const SurveyTab = ({ projectKey }: SurveyTabProps) => {
     }
   };
 
-  const copyToClipboard = (url: string, name: string) => {
+  const copyToClipboard = (url: string, createdAt: string) => {
     navigator.clipboard.writeText(url);
     toast({
       title: "Copied!",
-      description: `Survey link for "${name}" copied to clipboard`,
+      description: `Survey link from ${new Date(createdAt).toLocaleString()} copied to clipboard`,
     });
+  };
+
+  const deleteSurvey = async (surveyId: string, createdAt: string) => {
+    try {
+      const { error } = await supabase.functions.invoke('delete-survey', {
+        body: { 
+          projectKey,
+          surveyId,
+        },
+      });
+
+      if (error) {
+        throw new Error(error.message || "Failed to delete survey");
+      }
+
+      setSurveys(surveys.filter(s => s.id !== surveyId));
+      
+      toast({
+        title: "Deleted!",
+        description: `Survey from ${new Date(createdAt).toLocaleString()} has been removed`,
+      });
+    } catch (err: any) {
+      toast({
+        title: "Error",
+        description: err.message,
+        variant: "destructive",
+      });
+    }
   };
 
   if (loading) {
@@ -207,22 +246,43 @@ export const SurveyTab = ({ projectKey }: SurveyTabProps) => {
                   <div className="flex-1">
                     <div className="flex items-center gap-2 mb-2">
                       <Link2 className="h-4 w-4 text-muted-foreground" />
-                      <h4 className="font-semibold">{survey.name}</h4>
+                      <h4 className="font-semibold">
+                        {new Date(survey.createdAt).toLocaleString('en-US', {
+                          month: 'short',
+                          day: 'numeric',
+                          year: 'numeric',
+                          hour: 'numeric',
+                          minute: '2-digit',
+                          hour12: true
+                        })}
+                      </h4>
                     </div>
-                    <div className="rounded bg-muted p-2 font-mono text-sm break-all">
+                    <div className="rounded bg-muted p-2 font-mono text-sm break-all mb-2">
                       {survey.url}
                     </div>
-                    <p className="text-xs text-muted-foreground mt-2">
-                      Created {new Date(survey.createdAt).toLocaleDateString()}
-                    </p>
+                    {survey.introduction && (
+                      <p className="text-xs text-muted-foreground mt-2 line-clamp-2">
+                        {survey.introduction}
+                      </p>
+                    )}
                   </div>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => copyToClipboard(survey.url, survey.name)}
-                  >
-                    <Copy className="h-4 w-4" />
-                  </Button>
+                  <div className="flex gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => copyToClipboard(survey.url, survey.createdAt)}
+                    >
+                      <Copy className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => deleteSurvey(survey.id, survey.createdAt)}
+                      className="text-destructive hover:text-destructive"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
                 </div>
               </div>
             ))}

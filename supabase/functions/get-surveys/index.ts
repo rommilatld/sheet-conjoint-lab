@@ -45,11 +45,13 @@ Deno.serve(async (req) => {
     
     // Parse surveys from rows (skip header)
     // Columns: Survey ID, Survey URL, Created At, Introduction, Question, Preview
-    const surveys = rows.slice(1).map((row: string[]) => ({
+    const surveys = rows.slice(1).map((row: string[], index: number) => ({
       id: row[0] || '',
-      name: row[5] || row[3]?.substring(0, 100) || 'Untitled Survey', // Use preview or first 100 chars of introduction
       url: row[1] || '',
       createdAt: row[2] || '',
+      introduction: row[3] || '',
+      question: row[4] || 'Which subscription plan would you prefer?',
+      rowIndex: index + 2, // +2 because: +1 for 1-indexed, +1 for header
     }));
 
     console.log(`Retrieved ${surveys.length} surveys`);
