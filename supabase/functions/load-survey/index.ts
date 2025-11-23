@@ -81,16 +81,32 @@ function calculateOptimalTaskCount(attributes: any[]): number {
 function generateRandomTasks(attributes: any[], numTasks: number, numAlternatives = 3) {
   const tasks = [];
   
+  // Helper to check if two alternatives are identical
+  const areAlternativesEqual = (alt1: any, alt2: any): boolean => {
+    return attributes.every(attr => alt1[attr.name] === alt2[attr.name]);
+  };
+  
   for (let t = 0; t < numTasks; t++) {
-    const alternatives = [];
+    const alternatives: any[] = [];
     
-    // Generate the regular alternatives
+    // Generate unique alternatives
     for (let a = 0; a < numAlternatives; a++) {
-      const alternative: any = {};
-      attributes.forEach(attr => {
-        const randomLevel = attr.levels[Math.floor(Math.random() * attr.levels.length)];
-        alternative[attr.name] = randomLevel;
-      });
+      let attempts = 0;
+      let alternative: any;
+      
+      // Try to generate a unique alternative (max 50 attempts to avoid infinite loop)
+      do {
+        alternative = {};
+        attributes.forEach(attr => {
+          const randomLevel = attr.levels[Math.floor(Math.random() * attr.levels.length)];
+          alternative[attr.name] = randomLevel;
+        });
+        attempts++;
+      } while (
+        attempts < 50 && 
+        alternatives.some(existing => areAlternativesEqual(existing, alternative))
+      );
+      
       alternatives.push(alternative);
     }
     
