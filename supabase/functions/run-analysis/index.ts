@@ -26,7 +26,8 @@ function generatePlans(
   numPlans: number, 
   attributes: Attribute[], 
   utilities: { [key: string]: number },
-  responses: Response[]
+  responses: Response[],
+  pricingStrategy: 'submitted' | 'suggested'
 ) {
   const plans = [];
   const planNames = ['Good', 'Better', 'Best', 'Premium', 'Enterprise', 'Starter', 'Professional', 'Ultimate', 'Advanced', 'Elite'];
@@ -34,6 +35,24 @@ function generatePlans(
   // Find price attribute if it exists
   const priceAttr = attributes.find(attr => attr.isPriceAttribute);
   const currency = priceAttr?.currency || 'USD';
+  
+  // Extract available price levels if price attribute exists
+  const availablePriceLevels: number[] = [];
+  if (priceAttr) {
+    priceAttr.levels.forEach(level => {
+      const match = level.match(/[\d.]+/);
+      if (match) {
+        availablePriceLevels.push(parseFloat(match[0]));
+      }
+    });
+    availablePriceLevels.sort((a, b) => a - b);
+  }
+  
+  // Check for mismatch between plans and price levels
+  let priceMismatchWarning = '';
+  if (pricingStrategy === 'submitted' && priceAttr && availablePriceLevels.length < numPlans) {
+    priceMismatchWarning = `Warning: You requested ${numPlans} plans but only have ${availablePriceLevels.length} price levels. Plan Builder will recommend pricing for the additional plans.`;
+  }
   
   // Sort levels by utility for each attribute
   const sortedLevels: { [key: string]: Array<{ level: string; utility: number }> } = {};
@@ -65,20 +84,32 @@ function generatePlans(
       }
     });
     
-    // Determine pricing based on whether we have a price attribute
+    // Determine pricing based on strategy and available data
     let willingnessToPay: number;
     let suggestedPrice: number;
 
-    if (priceAttr && features[priceAttr.name]) {
-      // Use actual price data from the price attribute
+    if (pricingStrategy === 'submitted' && priceAttr && availablePriceLevels.length > 0) {
+      // Use submitted pricing levels - assign based on tier
+      if (i < availablePriceLevels.length) {
+        // We have a price level for this tier
+        suggestedPrice = availablePriceLevels[i];
+        willingnessToPay = suggestedPrice + (totalUtility * 5);
+      } else {
+        // Not enough price levels - fall back to utility-based
+        const basePrice = availablePriceLevels[availablePriceLevels.length - 1] || 10;
+        const utilityMultiplier = 20;
+        willingnessToPay = Math.max(0, basePrice + totalUtility * utilityMultiplier);
+        suggestedPrice = Math.round(willingnessToPay * 0.85);
+      }
+    } else if (priceAttr && features[priceAttr.name]) {
+      // Suggested pricing with price attribute context
       const priceLevel = features[priceAttr.name];
-      // Extract numeric value from price level (e.g., "$10" or "10" -> 10)
       const priceMatch = priceLevel.match(/[\d.]+/);
       const basePrice = priceMatch ? parseFloat(priceMatch[0]) : 50;
       
-      // Calculate willingness to pay based on utility relative to this price
+      // Calculate willingness to pay and suggest optimized pricing
       willingnessToPay = basePrice + (totalUtility * 5);
-      suggestedPrice = Math.round(basePrice);
+      suggestedPrice = Math.round(willingnessToPay * 0.85);
     } else {
       // No price attribute - use utility-based estimation
       const basePrice = 10;
@@ -96,11 +127,16 @@ function generatePlans(
     });
   }
   
-  return plans;
+  return { plans, priceMismatchWarning };
 }
 
 // Simple MNL conjoint analysis using iterative weighted least squares
-function runConjointAnalysis(responses: Response[], attributes: Attribute[], numPlans: number) {
+function runConjointAnalysis(
+  responses: Response[], 
+  attributes: Attribute[], 
+  numPlans: number, 
+  pricingStrategy: 'submitted' | 'suggested'
+) {
   // Count total responses for each attribute level
   const levelCounts: { [key: string]: number } = {};
   const levelTotals: { [key: string]: number } = {};
@@ -147,7 +183,7 @@ function runConjointAnalysis(responses: Response[], attributes: Attribute[], num
   });
   
   // Generate plans
-  const plans = generatePlans(numPlans, attributes, utilities, responses);
+  const { plans, priceMismatchWarning } = generatePlans(numPlans, attributes, utilities, responses, pricingStrategy);
   
   return {
     utilities,
@@ -155,6 +191,7 @@ function runConjointAnalysis(responses: Response[], attributes: Attribute[], num
     totalResponses: responses.length,
     plans,
     currency: attributes.find(a => a.isPriceAttribute)?.currency || 'USD',
+    priceMismatchWarning,
   };
 }
 
@@ -164,8 +201,8 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { projectKey, numPlans = 3 } = await req.json();
-    console.log('Running conjoint analysis with', numPlans, 'plans');
+    const { projectKey, numPlans = 3, pricingStrategy = 'suggested' } = await req.json();
+    console.log('Running conjoint analysis with', numPlans, 'plans, pricing strategy:', pricingStrategy);
 
     const sheetId = await decryptProjectKey(projectKey);
     const token = await getGoogleSheetsToken();
@@ -249,7 +286,7 @@ Deno.serve(async (req) => {
     console.log(`Analyzing ${responses.length} responses`);
     
     // Run analysis
-    const results = runConjointAnalysis(responses, attributes, numPlans);
+    const results = runConjointAnalysis(responses, attributes, numPlans, pricingStrategy);
     
     // Create analysis timestamp
     const timestamp = new Date().toISOString().replace(/[:.]/g, '-').split('T')[0];
@@ -346,6 +383,7 @@ Deno.serve(async (req) => {
           analysisTabName,
           plans: results.plans,
           currency: results.currency,
+          priceMismatchWarning: results.priceMismatchWarning,
         },
       }),
       {
