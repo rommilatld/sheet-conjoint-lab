@@ -54,8 +54,8 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { projectKey, surveyName } = await req.json();
-    console.log('Generating survey link for:', surveyName);
+    const { projectKey, introduction, question } = await req.json();
+    console.log('Generating survey link');
 
     const sheetId = await decryptProjectKey(projectKey);
     
@@ -99,7 +99,7 @@ Deno.serve(async (req) => {
     
     // Write header if needed
     const headerResponse = await fetch(
-      `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/Surveys!A1:D1`,
+      `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/Surveys!A1:F1`,
       {
         headers: {
           Authorization: `Bearer ${gsToken}`,
@@ -110,7 +110,7 @@ Deno.serve(async (req) => {
     const headerData = await headerResponse.json();
     if (!headerData.values || headerData.values.length === 0) {
       await fetch(
-        `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/Surveys!A1:D1?valueInputOption=RAW`,
+        `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/Surveys!A1:F1?valueInputOption=RAW`,
         {
           method: 'PUT',
           headers: {
@@ -118,15 +118,16 @@ Deno.serve(async (req) => {
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({
-            values: [['Survey ID', 'Survey Name', 'Survey URL', 'Created At']],
+            values: [['Survey ID', 'Survey URL', 'Created At', 'Introduction', 'Question', 'Preview']],
           }),
         }
       );
     }
     
     // Append survey data
+    const surveyPreview = introduction.substring(0, 100) + (introduction.length > 100 ? '...' : '');
     await fetch(
-      `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/Surveys!A:D:append?valueInputOption=RAW`,
+      `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/Surveys!A:F:append?valueInputOption=RAW`,
       {
         method: 'POST',
         headers: {
@@ -134,7 +135,7 @@ Deno.serve(async (req) => {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          values: [[surveyId, surveyName, surveyUrl, timestamp]],
+          values: [[surveyId, surveyUrl, timestamp, introduction, question, surveyPreview]],
         }),
       }
     );
@@ -145,7 +146,6 @@ Deno.serve(async (req) => {
       JSON.stringify({ 
         token,
         surveyId,
-        surveyName,
       }),
       {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
