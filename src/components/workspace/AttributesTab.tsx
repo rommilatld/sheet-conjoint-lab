@@ -292,54 +292,6 @@ export const AttributesTab = ({ projectKey }: AttributesTabProps) => {
             )}
           </Button>
         </div>
-
-        <Card className="shadow-card p-6 bg-accent/5 border-primary/20 mt-6">
-          <div className="mb-4">
-            <h3 className="text-xl font-semibold mb-2">Sample Size Guidelines</h3>
-            <p className="text-sm text-muted-foreground">
-              Recommended number of responses for statistical confidence
-            </p>
-          </div>
-
-          <div className="space-y-4">
-            <div className="flex items-center justify-between p-4 rounded-lg bg-background border border-border">
-              <div>
-                <div className="font-semibold text-lg">90% Confidence</div>
-                <p className="text-xs text-muted-foreground mt-1">High precision for critical business decisions</p>
-              </div>
-              <div className="text-right">
-                <div className="text-2xl font-bold text-primary">300+</div>
-                <p className="text-xs text-muted-foreground">responses</p>
-              </div>
-            </div>
-
-            <div className="flex items-center justify-between p-4 rounded-lg bg-background border border-border">
-              <div>
-                <div className="font-semibold text-lg">80% Confidence</div>
-                <p className="text-xs text-muted-foreground mt-1">Good balance for most research projects</p>
-              </div>
-              <div className="text-right">
-                <div className="text-2xl font-bold text-primary">200+</div>
-                <p className="text-xs text-muted-foreground">responses</p>
-              </div>
-            </div>
-
-            <div className="flex items-center justify-between p-4 rounded-lg bg-background border border-border">
-              <div>
-                <div className="font-semibold text-lg">70% Confidence</div>
-                <p className="text-xs text-muted-foreground mt-1">Acceptable for exploratory research</p>
-              </div>
-              <div className="text-right">
-                <div className="text-2xl font-bold text-primary">100+</div>
-                <p className="text-xs text-muted-foreground">responses</p>
-              </div>
-            </div>
-          </div>
-
-          <p className="mt-4 text-xs text-muted-foreground italic">
-            Note: These are general guidelines. Actual requirements may vary based on the number of attributes and alternatives in your survey design.
-          </p>
-        </Card>
       </div>
     </Card>
   );
