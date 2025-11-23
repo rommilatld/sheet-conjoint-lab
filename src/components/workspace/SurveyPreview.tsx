@@ -129,29 +129,31 @@ export const SurveyPreview = ({ attributes, projectKey }: SurveyPreviewProps) =>
     }
   };
 
-  // Generate random alternatives for preview
-  const generateAlternatives = (count: number): Alternative[] => {
-    const alternatives = Array.from({ length: count }, () => {
-      const alt: Alternative = {};
-      attributes.forEach((attr) => {
-        const randomLevel = attr.levels[Math.floor(Math.random() * attr.levels.length)];
-        alt[attr.name] = randomLevel;
+  // Generate random alternatives for preview - memoized to prevent regeneration on re-render
+  const [tasks] = useState(() => {
+    const generateAlternatives = (count: number): Alternative[] => {
+      const alternatives = Array.from({ length: count }, () => {
+        const alt: Alternative = {};
+        attributes.forEach((attr) => {
+          const randomLevel = attr.levels[Math.floor(Math.random() * attr.levels.length)];
+          alt[attr.name] = randomLevel;
+        });
+        return alt;
       });
-      return alt;
-    });
-    
-    // Add "None" option
-    const noneAlt: Alternative = {};
-    attributes.forEach((attr) => {
-      noneAlt[attr.name] = 'None of these';
-    });
-    alternatives.push(noneAlt);
-    
-    return alternatives;
-  };
+      
+      // Add "None" option
+      const noneAlt: Alternative = {};
+      attributes.forEach((attr) => {
+        noneAlt[attr.name] = 'None of these';
+      });
+      alternatives.push(noneAlt);
+      
+      return alternatives;
+    };
 
-  // Generate 3 tasks with 3 alternatives each + None
-  const tasks = Array.from({ length: 3 }, () => generateAlternatives(3));
+    // Generate 3 tasks with 3 alternatives each + None
+    return Array.from({ length: 3 }, () => generateAlternatives(3));
+  });
 
   const currentAlternatives = tasks[currentTask];
 
