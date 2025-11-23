@@ -128,15 +128,27 @@ function generatePlans(
       suggestedPrice = Math.round(willingnessToPay * 0.85);
     }
     
-    // Generate simple rationale
-    let rationale = '';
-    if (i === 0) {
-      rationale = 'This entry-level plan offers essential features at the most affordable price point.';
-    } else if (i === numPlans - 1) {
-      rationale = 'This premium plan includes the highest-value features for maximum customer satisfaction.';
-    } else {
-      rationale = 'This mid-tier plan balances value and affordability with a mix of popular features.';
-    }
+    // Generate rationale based on actual feature combinations
+    const featureDescriptions: string[] = [];
+    attributes.forEach(attr => {
+      const levels = sortedLevels[attr.name];
+      const selectedFeature = features[attr.name];
+      if (levels && levels.length > 0) {
+        const selectedLevel = levels.find(l => l.level === selectedFeature);
+        if (selectedLevel) {
+          const levelIdx = levels.indexOf(selectedLevel);
+          if (levelIdx === 0) {
+            featureDescriptions.push(`${attr.name} at ${selectedFeature} keeps costs low`);
+          } else if (levelIdx === levels.length - 1) {
+            featureDescriptions.push(`${attr.name} at ${selectedFeature} maximizes value`);
+          } else {
+            featureDescriptions.push(`${attr.name} at ${selectedFeature} provides balance`);
+          }
+        }
+      }
+    });
+    
+    const rationale = featureDescriptions.join(', ') + '.';
     
     plans.push({
       name: planNames[i] || `Plan ${i + 1}`,
