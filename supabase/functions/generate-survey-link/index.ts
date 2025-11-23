@@ -98,7 +98,15 @@ Deno.serve(async (req) => {
     const token = await encryptSurveyToken(sheetId, surveyId);
     // Save to Google Sheets Surveys tab
     const timestamp = new Date().toISOString();
-    const surveyUrl = `${req.headers.get('origin') || 'https://your-app.com'}/s/${token}`;
+    
+    // Construct survey URL - use the origin from request headers, but clean it
+    let origin = req.headers.get('origin') || req.headers.get('referer') || '';
+    if (!origin) {
+      origin = 'https://your-app.lovable.app'; // fallback
+    }
+    // Remove any trailing slashes
+    origin = origin.replace(/\/$/, '');
+    const surveyUrl = `${origin}/s/${token}`;
     
     // Ensure Surveys tab exists
     try {
