@@ -19,6 +19,7 @@ const Workspace = () => {
   const [loading, setLoading] = useState(true);
   const [sheetUrl, setSheetUrl] = useState("");
   const [error, setError] = useState("");
+  const [activeTab, setActiveTab] = useState("info");
   useEffect(() => {
     const loadProject = async () => {
       try {
@@ -72,7 +73,7 @@ const Workspace = () => {
       <div className="container mx-auto px-6 py-8 flex-1">
         
 
-      <Tabs defaultValue="info" className="space-y-6">
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
         <div className="flex items-center justify-between gap-4">
           <TabsList className="grid w-full grid-cols-5 lg:w-auto lg:inline-grid">
             <TabsTrigger value="info">Project Info</TabsTrigger>
@@ -87,39 +88,19 @@ const Workspace = () => {
         </div>
 
         <TabsContent value="info">
-          <ProjectInfo projectKey={projectKey!} sheetUrl={sheetUrl} onNavigate={(tab) => {
-            const tabElement = document.querySelector(`[data-state="active"][value="${tab}"]`);
-            if (tabElement) {
-              (tabElement as HTMLElement).click();
-            }
-          }} />
+          <ProjectInfo projectKey={projectKey!} sheetUrl={sheetUrl} onNavigate={setActiveTab} />
         </TabsContent>
 
         <TabsContent value="attributes">
-          <AttributesTab projectKey={projectKey!} onNavigate={(tab) => {
-            const tabElement = document.querySelector(`[value="${tab}"]`);
-            if (tabElement) {
-              (tabElement as HTMLElement).click();
-            }
-          }} />
+          <AttributesTab projectKey={projectKey!} onNavigate={setActiveTab} />
         </TabsContent>
 
         <TabsContent value="design">
-          <DesignTab projectKey={projectKey!} onNavigate={(tab) => {
-            const tabElement = document.querySelector(`[value="${tab}"]`);
-            if (tabElement) {
-              (tabElement as HTMLElement).click();
-            }
-          }} />
+          <DesignTab projectKey={projectKey!} onNavigate={setActiveTab} />
         </TabsContent>
 
         <TabsContent value="survey">
-          <SurveyTab projectKey={projectKey!} onNavigate={(tab) => {
-            const tabElement = document.querySelector(`[value="${tab}"]`);
-            if (tabElement) {
-              (tabElement as HTMLElement).click();
-            }
-          }} />
+          <SurveyTab projectKey={projectKey!} onNavigate={setActiveTab} />
         </TabsContent>
 
         <TabsContent value="analysis">
