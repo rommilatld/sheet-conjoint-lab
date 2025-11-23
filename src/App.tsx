@@ -6,6 +6,7 @@ import Index from "./pages/Index";
 import StartProject from "./pages/StartProject";
 import OpenProject from "./pages/OpenProject";
 import Workspace from "./pages/Workspace";
+import SurveyResponse from "./pages/SurveyResponse";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -20,6 +21,7 @@ const App = () => (
         <Route path="/start" element={<StartProject />} />
         <Route path="/open" element={<OpenProject />} />
         <Route path="/workspace/:projectKey" element={<Workspace />} />
+        <Route path="/s/:token" element={<SurveyResponse />} />
         <Route path="*" element={<NotFound />} />
       </Routes>
     </BrowserRouter>
