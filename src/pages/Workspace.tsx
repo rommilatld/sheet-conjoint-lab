@@ -11,6 +11,7 @@ import { SurveyTab } from "@/components/workspace/SurveyTab";
 import { AnalysisTab } from "@/components/workspace/AnalysisTab";
 import { supabase } from "@/integrations/supabase/client";
 import enLogo from "@/assets/en-logo.jpg";
+import { Footer } from "@/components/Footer";
 const Workspace = () => {
   const {
     projectKey
@@ -57,7 +58,7 @@ const Workspace = () => {
         </Card>
       </div>;
   }
-  return <div className="min-h-screen">
+  return <div className="min-h-screen flex flex-col">
       {/* Header */}
       <header className="border-b bg-card">
         <div className="container mx-auto px-6 py-4">
@@ -68,7 +69,7 @@ const Workspace = () => {
         </div>
       </header>
 
-      <div className="container mx-auto px-6 py-8">
+      <div className="container mx-auto px-6 py-8 flex-1">
         
 
       <Tabs defaultValue="info" className="space-y-6">
@@ -86,19 +87,39 @@ const Workspace = () => {
         </div>
 
         <TabsContent value="info">
-          <ProjectInfo projectKey={projectKey!} sheetUrl={sheetUrl} />
+          <ProjectInfo projectKey={projectKey!} sheetUrl={sheetUrl} onNavigate={(tab) => {
+            const tabElement = document.querySelector(`[data-state="active"][value="${tab}"]`);
+            if (tabElement) {
+              (tabElement as HTMLElement).click();
+            }
+          }} />
         </TabsContent>
 
         <TabsContent value="attributes">
-          <AttributesTab projectKey={projectKey!} />
+          <AttributesTab projectKey={projectKey!} onNavigate={(tab) => {
+            const tabElement = document.querySelector(`[value="${tab}"]`);
+            if (tabElement) {
+              (tabElement as HTMLElement).click();
+            }
+          }} />
         </TabsContent>
 
         <TabsContent value="design">
-          <DesignTab projectKey={projectKey!} />
+          <DesignTab projectKey={projectKey!} onNavigate={(tab) => {
+            const tabElement = document.querySelector(`[value="${tab}"]`);
+            if (tabElement) {
+              (tabElement as HTMLElement).click();
+            }
+          }} />
         </TabsContent>
 
         <TabsContent value="survey">
-          <SurveyTab projectKey={projectKey!} />
+          <SurveyTab projectKey={projectKey!} onNavigate={(tab) => {
+            const tabElement = document.querySelector(`[value="${tab}"]`);
+            if (tabElement) {
+              (tabElement as HTMLElement).click();
+            }
+          }} />
         </TabsContent>
 
         <TabsContent value="analysis">
@@ -106,6 +127,8 @@ const Workspace = () => {
         </TabsContent>
       </Tabs>
       </div>
+
+      <Footer />
     </div>;
 };
 export default Workspace;

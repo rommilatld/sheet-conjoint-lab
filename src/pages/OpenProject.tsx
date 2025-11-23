@@ -7,6 +7,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Loader2 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
+import { Footer } from "@/components/Footer";
 
 const OpenProject = () => {
   const [projectKey, setProjectKey] = useState("");
@@ -42,65 +43,68 @@ const OpenProject = () => {
   };
 
   return (
-    <div className="container mx-auto max-w-2xl px-6 py-20">
-      <div className="mb-8 text-center">
-        <h1 className="mb-3 text-4xl font-bold">Open Existing Project</h1>
-        <p className="text-lg text-muted-foreground">
-          Enter your project key to continue
-        </p>
-      </div>
-
-      <Card className="shadow-card p-8">
-        <div className="space-y-6">
-          <div>
-            <Label htmlFor="projectKey" className="text-base">Project Key</Label>
-            <Input
-              id="projectKey"
-              type="text"
-              placeholder="Enter your project key..."
-              value={projectKey}
-              onChange={(e) => setProjectKey(e.target.value)}
-              className="mt-2 font-mono"
-              onKeyPress={(e) => e.key === "Enter" && handleOpenProject()}
-            />
-            <p className="mt-2 text-sm text-muted-foreground">
-              This is the key you saved when creating your project
-            </p>
-          </div>
-
-          {error && (
-            <Alert variant="destructive">
-              <AlertDescription>{error}</AlertDescription>
-            </Alert>
-          )}
-
-          <div className="flex gap-3">
-            <Button
-              variant="outline"
-              onClick={() => navigate("/")}
-              size="lg"
-              className="flex-1"
-            >
-              Cancel
-            </Button>
-            <Button
-              onClick={handleOpenProject}
-              disabled={!projectKey || loading}
-              className="flex-1 gradient-primary"
-              size="lg"
-            >
-              {loading ? (
-                <>
-                  <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-                  Opening...
-                </>
-              ) : (
-                "Open Project"
-              )}
-            </Button>
-          </div>
+    <div className="min-h-screen flex flex-col">
+      <div className="container mx-auto max-w-2xl px-6 py-20">
+        <div className="mb-8 text-center">
+          <h1 className="mb-3 text-4xl font-bold">Open Existing Project</h1>
+          <p className="text-lg text-muted-foreground">
+            Enter your project key to continue
+          </p>
         </div>
-      </Card>
+
+        <Card className="shadow-card p-8">
+          <div className="space-y-6">
+            <div>
+              <Label htmlFor="projectKey" className="text-base">Project Key</Label>
+              <Input
+                id="projectKey"
+                type="text"
+                placeholder="Enter your project key..."
+                value={projectKey}
+                onChange={(e) => setProjectKey(e.target.value)}
+                className="mt-2 font-mono"
+                onKeyPress={(e) => e.key === "Enter" && handleOpenProject()}
+              />
+              <p className="mt-2 text-sm text-muted-foreground">
+                This is the key you saved when creating your project
+              </p>
+            </div>
+
+            {error && (
+              <Alert variant="destructive">
+                <AlertDescription>{error}</AlertDescription>
+              </Alert>
+            )}
+
+            <div className="flex gap-3">
+              <Button
+                variant="outline"
+                onClick={() => navigate("/")}
+                size="lg"
+                className="flex-1"
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={handleOpenProject}
+                disabled={!projectKey || loading}
+                className="flex-1 gradient-primary"
+                size="lg"
+              >
+                {loading ? (
+                  <>
+                    <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                    Opening...
+                  </>
+                ) : (
+                  "Open Project"
+                )}
+              </Button>
+            </div>
+          </div>
+        </Card>
+      </div>
+      <Footer />
     </div>
   );
 };

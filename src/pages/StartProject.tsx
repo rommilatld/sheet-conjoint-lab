@@ -8,6 +8,7 @@ import { Loader2, CheckCircle, Copy, Download } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
+import { Footer } from "@/components/Footer";
 
 const StartProject = () => {
   const [sheetUrl, setSheetUrl] = useState("");
@@ -96,118 +97,124 @@ const StartProject = () => {
 
   if (projectKey) {
     return (
-      <div className="container mx-auto max-w-2xl px-6 py-20">
-        <Card className="shadow-elegant p-8">
-          <div className="mb-6 text-center">
-            <div className="mb-4 inline-flex h-16 w-16 items-center justify-center rounded-full bg-accent/20">
-              <CheckCircle className="h-8 w-8 text-accent" />
-            </div>
-            <h1 className="mb-2 text-3xl font-bold">Project Created!</h1>
-            <p className="text-muted-foreground">Save your project key to access this project anytime</p>
-          </div>
-
-          <div className="space-y-4">
-            <div>
-              <Label className="text-base font-semibold">Your Project Key</Label>
-              <div className="mt-2 flex gap-2">
-                <Input value={projectKey} readOnly className="font-mono text-sm" />
-                <Button variant="outline" size="icon" onClick={copyToClipboard}>
-                  <Copy className="h-4 w-4" />
-                </Button>
-                <Button variant="outline" size="icon" onClick={downloadKey}>
-                  <Download className="h-4 w-4" />
-                </Button>
+      <div className="min-h-screen flex flex-col">
+        <div className="container mx-auto max-w-2xl px-6 py-20">
+          <Card className="shadow-elegant p-8">
+            <div className="mb-6 text-center">
+              <div className="mb-4 inline-flex h-16 w-16 items-center justify-center rounded-full bg-accent/20">
+                <CheckCircle className="h-8 w-8 text-accent" />
               </div>
+              <h1 className="mb-2 text-3xl font-bold">Project Created!</h1>
+              <p className="text-muted-foreground">Save your project key to access this project anytime</p>
             </div>
 
-            <Alert className="bg-accent/10 border-accent">
-              <AlertDescription>
-                <strong>Important:</strong> Store this key safely. You'll need it to access your project. Without it,
-                you won't be able to open your project again.
-              </AlertDescription>
-            </Alert>
+            <div className="space-y-4">
+              <div>
+                <Label className="text-base font-semibold">Your Project Key</Label>
+                <div className="mt-2 flex gap-2">
+                  <Input value={projectKey} readOnly className="font-mono text-sm" />
+                  <Button variant="outline" size="icon" onClick={copyToClipboard}>
+                    <Copy className="h-4 w-4" />
+                  </Button>
+                  <Button variant="outline" size="icon" onClick={downloadKey}>
+                    <Download className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
 
-            <Button onClick={openWorkspace} className="w-full gradient-primary" size="lg">
-              Open Workspace
-            </Button>
-          </div>
-        </Card>
+              <Alert className="bg-accent/10 border-accent">
+                <AlertDescription>
+                  <strong>Important:</strong> Store this key safely. You'll need it to access your project. Without it,
+                  you won't be able to open your project again.
+                </AlertDescription>
+              </Alert>
+
+              <Button onClick={openWorkspace} className="w-full gradient-primary" size="lg">
+                Open Workspace
+              </Button>
+            </div>
+          </Card>
+        </div>
+        <Footer />
       </div>
     );
   }
 
   return (
-    <div className="container mx-auto max-w-2xl px-6 py-20">
-      <div className="mb-8 text-center">
-        <h1 className="mb-3 text-4xl font-bold">Start New Project</h1>
-        <p className="text-lg text-muted-foreground">Connect your Google Sheet to begin</p>
-      </div>
+    <div className="min-h-screen flex flex-col">
+      <div className="container mx-auto max-w-2xl px-6 py-20">
+        <div className="mb-8 text-center">
+          <h1 className="mb-3 text-4xl font-bold">Start New Project</h1>
+          <p className="text-lg text-muted-foreground">Connect your Google Sheet to begin</p>
+        </div>
 
-      <Card className="shadow-card p-8">
-        <div className="space-y-6">
-          {/* Instructions */}
-          <div className="rounded-lg bg-muted/50 p-6">
-            <h2 className="mb-3 text-lg font-semibold">Setup Instructions</h2>
-            <ol className="space-y-2 text-sm text-muted-foreground">
-              <li>1. Create a new Google Sheet or use an existing one</li>
-              <li className="flex items-center gap-2">
-                <span>2. Share the sheet with:{" "}</span>
-                <code className="rounded bg-muted px-1 py-0.5 text-xs">{serviceAccountEmail}</code>
-                <Button 
-                  variant="ghost" 
-                  size="icon" 
-                  className="h-6 w-6" 
-                  onClick={copyServiceAccountEmail}
-                >
-                  <Copy className="h-3 w-3" />
-                </Button>
-              </li>
-              <li>
-                3. Give it <strong>Editor</strong> permissions
-              </li>
-              <li>4. Paste the sheet URL below</li>
-            </ol>
-          </div>
-
-          {/* Form */}
-          <div className="space-y-4">
-            <div>
-              <Label htmlFor="sheetUrl">Google Sheet URL</Label>
-              <Input
-                id="sheetUrl"
-                type="url"
-                placeholder="https://docs.google.com/spreadsheets/d/..."
-                value={sheetUrl}
-                onChange={(e) => setSheetUrl(e.target.value)}
-                className="mt-2"
-              />
-              <p className="mt-1.5 text-xs text-muted-foreground">Paste the full URL from your browser's address bar</p>
+        <Card className="shadow-card p-8">
+          <div className="space-y-6">
+            {/* Instructions */}
+            <div className="rounded-lg bg-muted/50 p-6">
+              <h2 className="mb-3 text-lg font-semibold">Setup Instructions</h2>
+              <ol className="space-y-2 text-sm text-muted-foreground">
+                <li>1. Create a new Google Sheet or use an existing one</li>
+                <li className="flex items-center gap-2">
+                  <span>2. Share the sheet with:{" "}</span>
+                  <code className="rounded bg-muted px-1 py-0.5 text-xs">{serviceAccountEmail}</code>
+                  <Button 
+                    variant="ghost" 
+                    size="icon" 
+                    className="h-6 w-6" 
+                    onClick={copyServiceAccountEmail}
+                  >
+                    <Copy className="h-3 w-3" />
+                  </Button>
+                </li>
+                <li>
+                  3. Give it <strong>Editor</strong> permissions
+                </li>
+                <li>4. Paste the sheet URL below</li>
+              </ol>
             </div>
 
-            {error && (
-              <Alert variant="destructive">
-                <AlertDescription>{error}</AlertDescription>
-              </Alert>
-            )}
+            {/* Form */}
+            <div className="space-y-4">
+              <div>
+                <Label htmlFor="sheetUrl">Google Sheet URL</Label>
+                <Input
+                  id="sheetUrl"
+                  type="url"
+                  placeholder="https://docs.google.com/spreadsheets/d/..."
+                  value={sheetUrl}
+                  onChange={(e) => setSheetUrl(e.target.value)}
+                  className="mt-2"
+                />
+                <p className="mt-1.5 text-xs text-muted-foreground">Paste the full URL from your browser's address bar</p>
+              </div>
 
-            <Button
-              onClick={handleCreateProject}
-              disabled={!sheetUrl || loading}
-              className="w-full gradient-primary"
-              size="lg"
-            >
-              {loading ? (
-                <>
-                  <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-                  Creating Project...
-                </>
-              ) : (
-                "Create Project"
+              {error && (
+                <Alert variant="destructive">
+                  <AlertDescription>{error}</AlertDescription>
+                </Alert>
               )}
-            </Button>
+
+              <Button
+                onClick={handleCreateProject}
+                disabled={!sheetUrl || loading}
+                className="w-full gradient-primary"
+                size="lg"
+              >
+                {loading ? (
+                  <>
+                    <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                    Creating Project...
+                  </>
+                ) : (
+                  "Create Project"
+                )}
+              </Button>
+            </div>
           </div>
-        </div>
-      </Card>
+        </Card>
+      </div>
+      <Footer />
     </div>
   );
 };
