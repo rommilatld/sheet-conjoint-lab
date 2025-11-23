@@ -3,6 +3,7 @@ import { Card } from "@/components/ui/card";
 import { ArrowRight, Lock, Zap, BarChart3, Users } from "lucide-react";
 import { Link } from "react-router-dom";
 import enLogo from "@/assets/en-logo.jpg";
+import { Footer } from "@/components/Footer";
 const Index = () => {
   return (
     <div className="min-h-screen">
@@ -163,6 +164,8 @@ const Index = () => {
           </Card>
         </div>
       </section>
+
+      <Footer />
     </div>
   );
 };

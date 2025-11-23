@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Loader2, ChevronRight, CheckCircle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { Footer } from "@/components/Footer";
 
 interface Alternative {
   [key: string]: string;
@@ -135,37 +136,43 @@ const SurveyResponse = () => {
 
   if (error) {
     return (
-      <div className="container mx-auto max-w-2xl px-6 py-20">
-        <Card className="p-8 text-center">
-          <h2 className="mb-2 text-2xl font-bold text-destructive">Error</h2>
-          <p className="text-muted-foreground">{error}</p>
-          <Button
-            onClick={() => navigate("/")}
-            className="mt-6"
-            variant="outline"
-          >
-            Return Home
-          </Button>
-        </Card>
+      <div className="min-h-screen flex flex-col">
+        <div className="container mx-auto max-w-2xl px-6 py-20">
+          <Card className="p-8 text-center">
+            <h2 className="mb-2 text-2xl font-bold text-destructive">Error</h2>
+            <p className="text-muted-foreground">{error}</p>
+            <Button
+              onClick={() => navigate("/")}
+              className="mt-6"
+              variant="outline"
+            >
+              Return Home
+            </Button>
+          </Card>
+        </div>
+        <Footer />
       </div>
     );
   }
 
   if (completed) {
     return (
-      <div className="container mx-auto max-w-2xl px-6 py-20">
-        <Card className="shadow-elegant p-8 text-center">
-          <div className="mb-6 inline-flex h-20 w-20 items-center justify-center rounded-full bg-accent/20">
-            <CheckCircle className="h-10 w-10 text-accent" />
-          </div>
-          <h1 className="mb-4 text-3xl font-bold">Thank You!</h1>
-          <p className="mb-6 text-lg text-muted-foreground">
-            Your responses have been recorded successfully.
-          </p>
-          <p className="text-muted-foreground">
-            You can close this window now.
-          </p>
-        </Card>
+      <div className="min-h-screen flex flex-col">
+        <div className="container mx-auto max-w-2xl px-6 py-20">
+          <Card className="shadow-elegant p-8 text-center">
+            <div className="mb-6 inline-flex h-20 w-20 items-center justify-center rounded-full bg-accent/20">
+              <CheckCircle className="h-10 w-10 text-accent" />
+            </div>
+            <h1 className="mb-4 text-3xl font-bold">Thank You!</h1>
+            <p className="mb-6 text-lg text-muted-foreground">
+              Your responses have been recorded successfully.
+            </p>
+            <p className="text-muted-foreground">
+              You can close this window now.
+            </p>
+          </Card>
+        </div>
+        <Footer />
       </div>
     );
   }
@@ -174,125 +181,128 @@ const SurveyResponse = () => {
   const attributeNames = Object.keys(currentTaskData.alternatives[0]);
 
   return (
-    <div className="container mx-auto max-w-4xl px-6 py-12">
-      <div className="mb-8">
-        <h1 className="mb-4 text-3xl font-bold">Research Survey</h1>
-        {introduction && introduction.trim() && (
-          <div className="mb-6 text-base text-muted-foreground whitespace-pre-line leading-relaxed">
-            {introduction}
-          </div>
-        )}
-      </div>
-
-      <Card className="shadow-card p-8">
-        <div className="mb-6">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-xl font-semibold">
-              Task {currentTask + 1} of {tasks.length}
-            </h3>
-            <div className="text-sm text-muted-foreground">
-              {Math.round(((currentTask) / tasks.length) * 100)}% complete
+    <div className="min-h-screen flex flex-col">
+      <div className="container mx-auto max-w-4xl px-6 py-12">
+        <div className="mb-8">
+          <h1 className="mb-4 text-3xl font-bold">Research Survey</h1>
+          {introduction && introduction.trim() && (
+            <div className="mb-6 text-base text-muted-foreground whitespace-pre-line leading-relaxed">
+              {introduction}
             </div>
-          </div>
-          <p className="text-base font-medium text-foreground mb-4">
-            {question || "Which subscription plan would you prefer?"}
-          </p>
+          )}
         </div>
 
-        <RadioGroup
-          value={selectedOption?.toString()}
-          onValueChange={(val) => setSelectedOption(parseInt(val))}
-          className="space-y-4"
-        >
-          {currentTaskData.alternatives.map((alternative, idx) => (
-            <div
-              key={idx}
-              className={`rounded-lg border-2 p-6 transition-all cursor-pointer ${
-                selectedOption === idx
-                  ? "border-primary bg-primary/5"
-                  : "border-border hover:border-primary/50"
-              }`}
-              onClick={() => setSelectedOption(idx)}
-            >
-              <div className="flex items-start gap-4">
-                <RadioGroupItem
-                  value={idx.toString()}
-                  id={`option-${idx}`}
-                  className="mt-1"
-                />
-                <Label
-                  htmlFor={`option-${idx}`}
-                  className="flex-1 cursor-pointer"
-                >
-                  <div className="font-semibold mb-3 text-lg">
-                    Option {String.fromCharCode(65 + idx)}
-                  </div>
-                  <div className="space-y-2">
-                    {attributeNames.map((attr) => (
-                      <div key={attr} className="flex items-center gap-2">
-                        <span className="font-medium text-sm">{attr}:</span>
-                        <span className="text-muted-foreground">
-                          {alternative[attr]}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                </Label>
+        <Card className="shadow-card p-8">
+          <div className="mb-6">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-xl font-semibold">
+                Task {currentTask + 1} of {tasks.length}
+              </h3>
+              <div className="text-sm text-muted-foreground">
+                {Math.round(((currentTask) / tasks.length) * 100)}% complete
               </div>
             </div>
-          ))}
-        </RadioGroup>
-
-        <div className="mt-8 flex items-center justify-between">
-          <div className="flex gap-2">
-            {tasks.map((_, idx) => (
-              <div
-                key={idx}
-                className={`h-2 w-2 rounded-full ${
-                  idx < currentTask
-                    ? "bg-accent"
-                    : idx === currentTask
-                    ? "bg-primary"
-                    : "bg-muted"
-                }`}
-              />
-            ))}
+            <p className="text-base font-medium text-foreground mb-4">
+              {question || "Which subscription plan would you prefer?"}
+            </p>
           </div>
 
-          <Button
-            onClick={handleNext}
-            disabled={selectedOption === null || submitting}
-            className="gradient-primary"
-            size="lg"
+          <RadioGroup
+            value={selectedOption?.toString()}
+            onValueChange={(val) => setSelectedOption(parseInt(val))}
+            className="space-y-4"
           >
-            {submitting ? (
-              <>
-                <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-                Submitting...
-              </>
-            ) : currentTask === tasks.length - 1 ? (
-              "Submit"
-            ) : (
-              <>
-                Next
-                <ChevronRight className="ml-2 h-5 w-5" />
-              </>
-            )}
-          </Button>
-        </div>
-      </Card>
+            {currentTaskData.alternatives.map((alternative, idx) => (
+              <div
+                key={idx}
+                className={`rounded-lg border-2 p-6 transition-all cursor-pointer ${
+                  selectedOption === idx
+                    ? "border-primary bg-primary/5"
+                    : "border-border hover:border-primary/50"
+                }`}
+                onClick={() => setSelectedOption(idx)}
+              >
+                <div className="flex items-start gap-4">
+                  <RadioGroupItem
+                    value={idx.toString()}
+                    id={`option-${idx}`}
+                    className="mt-1"
+                  />
+                  <Label
+                    htmlFor={`option-${idx}`}
+                    className="flex-1 cursor-pointer"
+                  >
+                    <div className="font-semibold mb-3 text-lg">
+                      Option {String.fromCharCode(65 + idx)}
+                    </div>
+                    <div className="space-y-2">
+                      {attributeNames.map((attr) => (
+                        <div key={attr} className="flex items-center gap-2">
+                          <span className="font-medium text-sm">{attr}:</span>
+                          <span className="text-muted-foreground">
+                            {alternative[attr]}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </Label>
+                </div>
+              </div>
+            ))}
+          </RadioGroup>
 
-      <div className="mt-8 text-center text-sm text-muted-foreground">
-        Powered by{" "}
-        <a
-          href="https://experimentnation.com/consulting"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="text-primary hover:underline font-medium"
-        >
-          Experiment Nation Consulting
-        </a>
+          <div className="mt-8 flex items-center justify-between">
+            <div className="flex gap-2">
+              {tasks.map((_, idx) => (
+                <div
+                  key={idx}
+                  className={`h-2 w-2 rounded-full ${
+                    idx < currentTask
+                      ? "bg-accent"
+                      : idx === currentTask
+                      ? "bg-primary"
+                      : "bg-muted"
+                  }`}
+                />
+              ))}
+            </div>
+
+            <Button
+              onClick={handleNext}
+              disabled={selectedOption === null || submitting}
+              className="gradient-primary"
+              size="lg"
+            >
+              {submitting ? (
+                <>
+                  <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                  Submitting...
+                </>
+              ) : currentTask === tasks.length - 1 ? (
+                "Submit"
+              ) : (
+                <>
+                  Next
+                  <ChevronRight className="ml-2 h-5 w-5" />
+                </>
+              )}
+            </Button>
+          </div>
+        </Card>
+
+        <div className="mt-8 text-center text-sm text-muted-foreground">
+          Powered by{" "}
+          <a
+            href="https://experimentnation.com/consulting"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-primary hover:underline font-medium"
+          >
+            Experiment Nation Consulting
+          </a>
+        </div>
       </div>
+      <Footer />
     </div>
   );
 };

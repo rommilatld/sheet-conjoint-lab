@@ -4,13 +4,15 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Copy, ExternalLink } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { TabNavigation } from "./TabNavigation";
 
 interface ProjectInfoProps {
   projectKey: string;
   sheetUrl: string;
+  onNavigate?: (tab: string) => void;
 }
 
-export const ProjectInfo = ({ projectKey, sheetUrl }: ProjectInfoProps) => {
+export const ProjectInfo = ({ projectKey, sheetUrl, onNavigate }: ProjectInfoProps) => {
   const { toast } = useToast();
 
   const copyKey = () => {
@@ -72,6 +74,11 @@ export const ProjectInfo = ({ projectKey, sheetUrl }: ProjectInfoProps) => {
             <li>• You have complete control over your data</li>
           </ul>
         </div>
+
+        <TabNavigation
+          onNext={() => onNavigate?.("attributes")}
+          nextLabel="Attributes"
+        />
       </div>
     </Card>
   );

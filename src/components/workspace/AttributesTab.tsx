@@ -8,9 +8,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Loader2, Plus, Trash2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
+import { TabNavigation } from "./TabNavigation";
 
 interface AttributesTabProps {
   projectKey: string;
+  onNavigate?: (tab: string) => void;
 }
 
 interface Attribute {
@@ -20,7 +22,7 @@ interface Attribute {
   currency?: string;
 }
 
-export const AttributesTab = ({ projectKey }: AttributesTabProps) => {
+export const AttributesTab = ({ projectKey, onNavigate }: AttributesTabProps) => {
   const [attributes, setAttributes] = useState<Attribute[]>([
     { name: "Pricing", levels: ["", ""] },
   ]);
@@ -292,6 +294,13 @@ export const AttributesTab = ({ projectKey }: AttributesTabProps) => {
             )}
           </Button>
         </div>
+
+        <TabNavigation
+          onPrevious={() => onNavigate?.("info")}
+          onNext={() => onNavigate?.("design")}
+          previousLabel="Project Info"
+          nextLabel="Preview"
+        />
       </div>
     </Card>
   );

@@ -4,15 +4,18 @@ import { Button } from "@/components/ui/button";
 import { Loader2, Eye } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { SurveyPreview } from "./SurveyPreview";
+import { TabNavigation } from "./TabNavigation";
 interface DesignTabProps {
   projectKey: string;
+  onNavigate?: (tab: string) => void;
 }
 interface Attribute {
   name: string;
   levels: string[];
 }
 export const DesignTab = ({
-  projectKey
+  projectKey,
+  onNavigate
 }: DesignTabProps) => {
   const [attributes, setAttributes] = useState<Attribute[]>([]);
   const [loading, setLoading] = useState(true);
@@ -63,5 +66,12 @@ export const DesignTab = ({
       
 
       {showPreview && <SurveyPreview attributes={attributes} projectKey={projectKey} />}
+      
+      <TabNavigation
+        onPrevious={() => onNavigate?.("attributes")}
+        onNext={() => onNavigate?.("survey")}
+        previousLabel="Attributes"
+        nextLabel="Generate Links"
+      />
     </div>;
 };

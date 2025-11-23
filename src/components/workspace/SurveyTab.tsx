@@ -4,9 +4,11 @@ import { Button } from "@/components/ui/button";
 import { Link2, Copy, Loader2, Plus, Trash2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
+import { TabNavigation } from "./TabNavigation";
 
 interface SurveyTabProps {
   projectKey: string;
+  onNavigate?: (tab: string) => void;
 }
 
 interface Survey {
@@ -17,7 +19,7 @@ interface Survey {
   question: string;
 }
 
-export const SurveyTab = ({ projectKey }: SurveyTabProps) => {
+export const SurveyTab = ({ projectKey, onNavigate }: SurveyTabProps) => {
   const [surveys, setSurveys] = useState<Survey[]>([]);
   const [loading, setLoading] = useState(false);
   const [generating, setGenerating] = useState(false);
@@ -236,6 +238,13 @@ export const SurveyTab = ({ projectKey }: SurveyTabProps) => {
           </div>
         </Card>
       )}
+
+      <TabNavigation
+        onPrevious={() => onNavigate?.("design")}
+        onNext={() => onNavigate?.("analysis")}
+        previousLabel="Preview"
+        nextLabel="Analysis"
+      />
     </div>
   );
 };
