@@ -61,7 +61,13 @@ export const SurveyTab = ({ projectKey }: SurveyTabProps) => {
         throw new Error("No token received");
       }
 
-      const surveyUrl = `${window.location.origin}/s/${data.token}`;
+      // Construct survey URL using the published app domain (remove /workspace path if present)
+      let baseUrl = window.location.origin;
+      // If we're in a workspace URL, strip the workspace path to get the base domain
+      if (window.location.pathname.includes('/workspace/')) {
+        baseUrl = window.location.origin;
+      }
+      const surveyUrl = `${baseUrl}/s/${data.token}`;
       
       const newSurvey: Survey = {
         id: data.surveyId,

@@ -74,21 +74,31 @@ const OpenProject = () => {
             </Alert>
           )}
 
-          <Button
-            onClick={handleOpenProject}
-            disabled={!projectKey || loading}
-            className="w-full gradient-primary"
-            size="lg"
-          >
-            {loading ? (
-              <>
-                <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-                Opening Project...
-              </>
-            ) : (
-              "Open Project"
-            )}
-          </Button>
+          <div className="flex gap-3">
+            <Button
+              variant="outline"
+              onClick={() => navigate("/")}
+              size="lg"
+              className="flex-1"
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleOpenProject}
+              disabled={!projectKey || loading}
+              className="flex-1 gradient-primary"
+              size="lg"
+            >
+              {loading ? (
+                <>
+                  <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                  Opening...
+                </>
+              ) : (
+                "Open Project"
+              )}
+            </Button>
+          </div>
         </div>
       </Card>
     </div>
