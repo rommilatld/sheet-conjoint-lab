@@ -1,0 +1,5 @@
+{
+  "imports": {
+    "google-auth-library": "npm:google-auth-library@9"
+  }
+}

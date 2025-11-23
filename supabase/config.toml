@@ -1,1 +1,19 @@
 project_id = "ppllyabwoquacyuddacg"
+
+[functions]
+import_map = "./functions/import_map.json"
+
+[functions."init-project"]
+verify_jwt = false
+
+[functions."validate-key"]
+verify_jwt = false
+
+[functions."get-sheet-info"]
+verify_jwt = false
+
+[functions."save-attributes"]
+verify_jwt = false
+
+[functions."get-attributes"]
+verify_jwt = false
