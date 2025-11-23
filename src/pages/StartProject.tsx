@@ -17,6 +17,9 @@ const StartProject = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
 
+  // IMPORTANT: If you're setting up your own instance of this app,
+  // update this email to match YOUR service account email from Google Cloud.
+  // See SETUP.md for detailed instructions.
   const serviceAccountEmail = "conjoint-sheets-access@lovable-conjoint.iam.gserviceaccount.com";
 
   const handleCreateProject = async () => {
