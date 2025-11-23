@@ -8,6 +8,64 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+async function ensureTabExists(sheetId: string, token: string, tabName: string) {
+  // Check if tab exists
+  const sheetResponse = await fetch(
+    `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}`,
+    {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    }
+  );
+
+  if (!sheetResponse.ok) {
+    throw new Error('Failed to access spreadsheet');
+  }
+
+  const sheetData = await sheetResponse.json();
+  const existingSheets = sheetData.sheets || [];
+  const tabExists = existingSheets.some((sheet: any) => 
+    sheet.properties.title === tabName
+  );
+
+  if (!tabExists) {
+    console.log(`Creating ${tabName} tab...`);
+    // Create the tab
+    const createResponse = await fetch(
+      `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}:batchUpdate`,
+      {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          requests: [
+            {
+              addSheet: {
+                properties: {
+                  title: tabName,
+                  gridProperties: {
+                    rowCount: 1000,
+                    columnCount: 26,
+                  },
+                },
+              },
+            },
+          ],
+        }),
+      }
+    );
+
+    if (!createResponse.ok) {
+      const error = await createResponse.text();
+      throw new Error(`Failed to create ${tabName} tab: ${error}`);
+    }
+    console.log(`${tabName} tab created successfully`);
+  }
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -22,6 +80,9 @@ Deno.serve(async (req) => {
     // Try Google Sheets first, fall back to in-memory storage
     try {
       const token = await getGoogleSheetsToken();
+
+      // Ensure Attributes tab exists
+      await ensureTabExists(sheetId, token, 'Attributes');
 
       // Prepare data for Attributes sheet
       const rows = [['Attribute', 'Level']];
