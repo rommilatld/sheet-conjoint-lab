@@ -11,28 +11,30 @@ import { SurveyTab } from "@/components/workspace/SurveyTab";
 import { AnalysisTab } from "@/components/workspace/AnalysisTab";
 import { supabase } from "@/integrations/supabase/client";
 import enLogo from "@/assets/en-logo.jpg";
-
 const Workspace = () => {
-  const { projectKey } = useParams();
+  const {
+    projectKey
+  } = useParams();
   const [loading, setLoading] = useState(true);
   const [sheetUrl, setSheetUrl] = useState("");
   const [error, setError] = useState("");
-
   useEffect(() => {
     const loadProject = async () => {
       try {
-        const { data, error: functionError } = await supabase.functions.invoke('get-sheet-info', {
-          body: { projectKey },
+        const {
+          data,
+          error: functionError
+        } = await supabase.functions.invoke('get-sheet-info', {
+          body: {
+            projectKey
+          }
         });
-
         if (functionError) {
           throw new Error("Failed to load project");
         }
-
         if (!data || !data.sheetUrl) {
           throw new Error("Invalid project data");
         }
-
         setSheetUrl(data.sheetUrl);
       } catch (err: any) {
         setError(err.message);
@@ -40,31 +42,22 @@ const Workspace = () => {
         setLoading(false);
       }
     };
-
     loadProject();
   }, [projectKey]);
-
   if (loading) {
-    return (
-      <div className="flex min-h-screen items-center justify-center">
+    return <div className="flex min-h-screen items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
-      </div>
-    );
+      </div>;
   }
-
   if (error) {
-    return (
-      <div className="container mx-auto max-w-2xl px-6 py-20">
+    return <div className="container mx-auto max-w-2xl px-6 py-20">
         <Card className="p-8 text-center">
           <h2 className="mb-2 text-2xl font-bold text-destructive">Error</h2>
           <p className="text-muted-foreground">{error}</p>
         </Card>
-      </div>
-    );
+      </div>;
   }
-
-  return (
-    <div className="min-h-screen">
+  return <div className="min-h-screen">
       {/* Header */}
       <header className="border-b bg-card">
         <div className="container mx-auto px-6 py-4">
@@ -76,10 +69,7 @@ const Workspace = () => {
       </header>
 
       <div className="container mx-auto px-6 py-8">
-        <div className="mb-8">
-          <h1 className="mb-2 text-3xl font-bold">Project Workspace</h1>
-          <p className="text-muted-foreground">Manage your conjoint study</p>
-        </div>
+        
 
       <Tabs defaultValue="info" className="space-y-6">
         <div className="flex items-center justify-between gap-4">
@@ -90,11 +80,7 @@ const Workspace = () => {
             <TabsTrigger value="survey">Generate Links</TabsTrigger>
             <TabsTrigger value="analysis">Analysis</TabsTrigger>
           </TabsList>
-          <Button
-            variant="outline"
-            onClick={() => window.location.href = '/'}
-            className="whitespace-nowrap"
-          >
+          <Button variant="outline" onClick={() => window.location.href = '/'} className="whitespace-nowrap">
             Start New Survey
           </Button>
         </div>
@@ -120,8 +106,6 @@ const Workspace = () => {
         </TabsContent>
       </Tabs>
       </div>
-    </div>
-  );
+    </div>;
 };
-
 export default Workspace;
