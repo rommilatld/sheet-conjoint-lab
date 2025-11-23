@@ -1,42 +1,11 @@
 // @ts-ignore - Supabase edge runtime types
 
+import { getGoogleSheetsToken, decryptProjectKey } from '../_shared/google-sheets.ts';
+
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
-
-async function decryptProjectKey(projectKey: string): Promise<string> {
-  const encryptionSecret = Deno.env.get('ENCRYPTION_SECRET');
-  if (!encryptionSecret) {
-    throw new Error('Missing encryption secret');
-  }
-
-  const base64 = projectKey.replace(/-/g, '+').replace(/_/g, '/');
-  const paddedBase64 = base64 + '='.repeat((4 - (base64.length % 4)) % 4);
-  const combined = Uint8Array.from(atob(paddedBase64), c => c.charCodeAt(0));
-
-  const iv = combined.slice(0, 12);
-  const encrypted = combined.slice(12);
-
-  const encoder = new TextEncoder();
-  const keyData = encoder.encode(encryptionSecret.slice(0, 32));
-  const key = await crypto.subtle.importKey(
-    'raw',
-    keyData,
-    { name: 'AES-GCM' },
-    false,
-    ['decrypt']
-  );
-
-  const decrypted = await crypto.subtle.decrypt(
-    { name: 'AES-GCM', iv },
-    key,
-    encrypted
-  );
-
-  const decoder = new TextDecoder();
-  return decoder.decode(decrypted);
-}
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -45,13 +14,52 @@ Deno.serve(async (req) => {
 
   try {
     const { projectKey } = await req.json();
-    console.log('Getting attributes');
+    console.log('Getting attributes from Google Sheets');
 
     const sheetId = await decryptProjectKey(projectKey);
-    
-    // For this demo, return empty attributes
-    // In production, this would read from Google Sheets
-    const attributes: any[] = [];
+    const token = await getGoogleSheetsToken();
+
+    const response = await fetch(
+      `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/Attributes!A:B`,
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      }
+    );
+
+    if (!response.ok) {
+      console.log('Sheet not found or no data, returning empty attributes');
+      return new Response(
+        JSON.stringify({ attributes: [] }),
+        {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          status: 200,
+        }
+      );
+    }
+
+    const data = await response.json();
+    const rows = data.values || [];
+
+    // Parse attributes from rows
+    const attributesMap = new Map();
+    for (let i = 1; i < rows.length; i++) {
+      const [name, level] = rows[i];
+      if (name && level) {
+        if (!attributesMap.has(name)) {
+          attributesMap.set(name, []);
+        }
+        attributesMap.get(name).push(level);
+      }
+    }
+
+    const attributes = Array.from(attributesMap.entries()).map(([name, levels]) => ({
+      name,
+      levels,
+    }));
+
+    console.log(`Loaded ${attributes.length} attributes from Google Sheets`);
 
     return new Response(
       JSON.stringify({ attributes }),

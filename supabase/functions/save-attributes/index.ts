@@ -1,42 +1,11 @@
 // @ts-ignore - Supabase edge runtime types
 
+import { getGoogleSheetsToken, decryptProjectKey } from '../_shared/google-sheets.ts';
+
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
-
-async function decryptProjectKey(projectKey: string): Promise<string> {
-  const encryptionSecret = Deno.env.get('ENCRYPTION_SECRET');
-  if (!encryptionSecret) {
-    throw new Error('Missing encryption secret');
-  }
-
-  const base64 = projectKey.replace(/-/g, '+').replace(/_/g, '/');
-  const paddedBase64 = base64 + '='.repeat((4 - (base64.length % 4)) % 4);
-  const combined = Uint8Array.from(atob(paddedBase64), c => c.charCodeAt(0));
-
-  const iv = combined.slice(0, 12);
-  const encrypted = combined.slice(12);
-
-  const encoder = new TextEncoder();
-  const keyData = encoder.encode(encryptionSecret.slice(0, 32));
-  const key = await crypto.subtle.importKey(
-    'raw',
-    keyData,
-    { name: 'AES-GCM' },
-    false,
-    ['decrypt']
-  );
-
-  const decrypted = await crypto.subtle.decrypt(
-    { name: 'AES-GCM', iv },
-    key,
-    encrypted
-  );
-
-  const decoder = new TextDecoder();
-  return decoder.decode(decrypted);
-}
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -45,14 +14,56 @@ Deno.serve(async (req) => {
 
   try {
     const { projectKey, attributes } = await req.json();
-    console.log('Saving attributes');
+    console.log('Saving attributes to Google Sheets');
 
     const sheetId = await decryptProjectKey(projectKey);
-    
-    // For this demo, we'll store attributes in memory
-    // In production, this would write to Google Sheets
-    console.log('Attributes would be saved to sheet:', sheetId);
-    console.log('Attributes:', JSON.stringify(attributes));
+    const token = await getGoogleSheetsToken();
+
+    // Prepare data for Attributes sheet
+    const rows = [['Attribute', 'Level']];
+    attributes.forEach((attr: any) => {
+      if (attr.name) {
+        attr.levels.forEach((level: string) => {
+          if (level) {
+            rows.push([attr.name, level]);
+          }
+        });
+      }
+    });
+
+    // Clear existing data
+    await fetch(
+      `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/Attributes!A:B:clear`,
+      {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+      }
+    );
+
+    // Write new data
+    const writeResponse = await fetch(
+      `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/Attributes!A1:append?valueInputOption=USER_ENTERED`,
+      {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          values: rows,
+        }),
+      }
+    );
+
+    if (!writeResponse.ok) {
+      const error = await writeResponse.text();
+      throw new Error(`Failed to write to sheet: ${error}`);
+    }
+
+    console.log('Attributes saved successfully to Google Sheets');
 
     return new Response(
       JSON.stringify({ success: true }),
