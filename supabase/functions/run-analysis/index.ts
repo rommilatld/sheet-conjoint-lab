@@ -102,14 +102,14 @@ function generatePlans(
       // Use submitted pricing levels - assign based on tier
       if (i < availablePriceLevels.length) {
         // We have a price level for this tier
-        suggestedPrice = availablePriceLevels[i];
-        willingnessToPay = suggestedPrice + (totalUtility * 5);
+        suggestedPrice = Math.max(1, availablePriceLevels[i]);
+        willingnessToPay = Math.max(1, suggestedPrice + (totalUtility * 5));
       } else {
         // Not enough price levels - fall back to utility-based
         const basePrice = availablePriceLevels[availablePriceLevels.length - 1] || 10;
         const utilityMultiplier = 20;
-        willingnessToPay = Math.max(0, basePrice + totalUtility * utilityMultiplier);
-        suggestedPrice = Math.round(willingnessToPay * 0.85);
+        willingnessToPay = Math.max(1, basePrice + totalUtility * utilityMultiplier);
+        suggestedPrice = Math.max(1, Math.round(willingnessToPay * 0.85));
       }
     } else if (priceAttr && features[priceAttr.name]) {
       // Suggested pricing with price attribute context
@@ -118,14 +118,14 @@ function generatePlans(
       const basePrice = priceMatch ? parseFloat(priceMatch[0]) : 50;
       
       // Calculate willingness to pay and suggest optimized pricing
-      willingnessToPay = basePrice + (totalUtility * 5);
-      suggestedPrice = Math.round(willingnessToPay * 0.85);
+      willingnessToPay = Math.max(1, basePrice + (totalUtility * 5));
+      suggestedPrice = Math.max(1, Math.round(willingnessToPay * 0.85));
     } else {
       // No price attribute - use utility-based estimation
       const basePrice = 10;
       const utilityMultiplier = 20;
-      willingnessToPay = Math.max(0, basePrice + totalUtility * utilityMultiplier);
-      suggestedPrice = Math.round(willingnessToPay * 0.85);
+      willingnessToPay = Math.max(1, basePrice + totalUtility * utilityMultiplier);
+      suggestedPrice = Math.max(1, Math.round(willingnessToPay * 0.85));
     }
     
     // Generate rationale based on actual feature combinations
