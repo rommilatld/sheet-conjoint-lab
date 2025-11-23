@@ -36,6 +36,7 @@ export const AnalysisTab = ({ projectKey }: AnalysisTabProps) => {
   const [results, setResults] = useState<AnalysisResults | null>(null);
   const [numPlans, setNumPlans] = useState<number>(3);
   const [pricingStrategy, setPricingStrategy] = useState<'submitted' | 'suggested'>('suggested');
+  const [goal, setGoal] = useState<'revenue' | 'purchases'>('revenue');
   const { toast } = useToast();
 
   // Fetch attributes to set default number of plans based on pricing levels
@@ -78,13 +79,15 @@ export const AnalysisTab = ({ projectKey }: AnalysisTabProps) => {
     doc.setFontSize(10);
     doc.setFont(undefined, 'normal');
     doc.setFillColor(245, 245, 250);
-    doc.rect(20, yPos, 170, 16, 'F');
+    doc.rect(20, yPos, 170, 20, 'F');
     yPos += 6;
     doc.text(`Total Responses: ${results.totalResponses}`, 25, yPos);
     yPos += 5;
     doc.text(`Analysis Date: ${new Date().toLocaleDateString()}`, 25, yPos);
     yPos += 5;
     doc.text(`Currency: ${currency}`, 25, yPos);
+    yPos += 5;
+    doc.text(`Goal: ${goal === 'revenue' ? 'Maximize Revenue' : 'Maximize Purchases'}`, 25, yPos);
     yPos += 12;
 
     // Attribute Importances
@@ -174,7 +177,8 @@ export const AnalysisTab = ({ projectKey }: AnalysisTabProps) => {
       doc.setFontSize(9);
       doc.setFont(undefined, 'normal');
       doc.setTextColor(100, 100, 100);
-      doc.text("Pricing plans optimized based on feature utilities and willingness to pay", 20, yPos);
+      const goalText = goal === 'revenue' ? 'Plans optimized to maximize total revenue' : 'Plans optimized to maximize purchases and adoption';
+      doc.text(goalText, 20, yPos);
       yPos += 12;
       
       doc.setTextColor(0, 0, 0);
@@ -241,6 +245,7 @@ export const AnalysisTab = ({ projectKey }: AnalysisTabProps) => {
           projectKey, 
           numPlans,
           pricingStrategy,
+          goal,
         },
       });
 
@@ -303,6 +308,50 @@ export const AnalysisTab = ({ projectKey }: AnalysisTabProps) => {
             <p className="mt-1 text-xs text-muted-foreground">
               Generate good, better, best pricing plans (1-10 plans)
             </p>
+          </div>
+
+          <div>
+            <Label className="text-base mb-3 block">Goal</Label>
+            <div className="space-y-3">
+              <div className="flex items-start space-x-3">
+                <input
+                  type="radio"
+                  id="revenue"
+                  name="goal"
+                  value="revenue"
+                  checked={goal === 'revenue'}
+                  onChange={(e) => setGoal(e.target.value as 'revenue' | 'purchases')}
+                  className="mt-0.5 h-4 w-4 text-primary focus:ring-primary"
+                />
+                <div className="flex-1">
+                  <Label htmlFor="revenue" className="font-medium cursor-pointer">
+                    Maximize Revenue
+                  </Label>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Optimize plans for higher prices and total revenue
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-start space-x-3">
+                <input
+                  type="radio"
+                  id="purchases"
+                  name="goal"
+                  value="purchases"
+                  checked={goal === 'purchases'}
+                  onChange={(e) => setGoal(e.target.value as 'revenue' | 'purchases')}
+                  className="mt-0.5 h-4 w-4 text-primary focus:ring-primary"
+                />
+                <div className="flex-1">
+                  <Label htmlFor="purchases" className="font-medium cursor-pointer">
+                    Maximize Purchases
+                  </Label>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Optimize plans for affordability and customer acquisition
+                  </p>
+                </div>
+              </div>
+            </div>
           </div>
 
           <div>
@@ -458,7 +507,9 @@ export const AnalysisTab = ({ projectKey }: AnalysisTabProps) => {
               <div>
                 <h4 className="mb-3 text-lg font-semibold">Recommended Plans</h4>
                 <p className="mb-4 text-xs text-muted-foreground">
-                  Pricing plans optimized based on feature utilities and willingness to pay
+                  {goal === 'revenue' 
+                    ? 'Plans optimized to maximize total revenue'
+                    : 'Plans optimized to maximize purchases and adoption'}
                 </p>
                 <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
                   {results.plans.map((plan, idx) => {
