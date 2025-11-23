@@ -32,6 +32,29 @@ export const SurveyPreview = ({ attributes, projectKey }: SurveyPreviewProps) =>
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
 
+  // Calculate recommended sample sizes based on study complexity
+  const calculateSampleSizes = () => {
+    const numAttributes = attributes.length;
+    const maxLevels = Math.max(...attributes.map(attr => attr.levels.length));
+    const totalLevels = attributes.reduce((sum, attr) => sum + attr.levels.length, 0);
+    
+    // Rule of thumb: 300-500 responses per attribute for high confidence
+    // Adjusted by complexity (max levels and total parameters)
+    const complexityFactor = Math.max(numAttributes, maxLevels * 0.5);
+    
+    const high = Math.ceil(complexityFactor * 100);
+    const medium = Math.ceil(complexityFactor * 60);
+    const low = Math.ceil(complexityFactor * 30);
+    
+    return {
+      high: Math.max(300, Math.min(high, 1000)),
+      medium: Math.max(200, Math.min(medium, 600)),
+      low: Math.max(100, Math.min(low, 300))
+    };
+  };
+
+  const sampleSizes = calculateSampleSizes();
+
   useEffect(() => {
     loadConfig();
   }, [projectKey]);
@@ -233,7 +256,7 @@ export const SurveyPreview = ({ attributes, projectKey }: SurveyPreviewProps) =>
                 <p className="text-xs text-muted-foreground mt-0.5">High precision for critical decisions</p>
               </div>
               <div className="text-right">
-                <div className="text-xl font-bold text-primary">400</div>
+                <div className="text-xl font-bold text-primary">{sampleSizes.high}</div>
                 <p className="text-xs text-muted-foreground">responses</p>
               </div>
             </div>
@@ -244,7 +267,7 @@ export const SurveyPreview = ({ attributes, projectKey }: SurveyPreviewProps) =>
                 <p className="text-xs text-muted-foreground mt-0.5">Good balance for most projects</p>
               </div>
               <div className="text-right">
-                <div className="text-xl font-bold text-primary">250</div>
+                <div className="text-xl font-bold text-primary">{sampleSizes.medium}</div>
                 <p className="text-xs text-muted-foreground">responses</p>
               </div>
             </div>
@@ -255,14 +278,14 @@ export const SurveyPreview = ({ attributes, projectKey }: SurveyPreviewProps) =>
                 <p className="text-xs text-muted-foreground mt-0.5">Acceptable for exploratory research</p>
               </div>
               <div className="text-right">
-                <div className="text-xl font-bold text-primary">125</div>
+                <div className="text-xl font-bold text-primary">{sampleSizes.low}</div>
                 <p className="text-xs text-muted-foreground">responses</p>
               </div>
             </div>
           </div>
 
           <p className="mt-3 text-xs text-muted-foreground italic">
-            Note: These are general guidelines. Actual requirements may vary based on your survey design.
+            Calculated for {attributes.length} attributes with {attributes.reduce((sum, attr) => sum + attr.levels.length, 0)} total levels
           </p>
         </div>
 
