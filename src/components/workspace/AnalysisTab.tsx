@@ -178,9 +178,25 @@ export const AnalysisTab = ({ projectKey }: AnalysisTabProps) => {
       doc.setFontSize(9);
       doc.setFont(undefined, 'normal');
       doc.setTextColor(100, 100, 100);
-      const goalText = goal === 'revenue' ? 'Plans optimized to maximize total revenue' : 'Plans optimized to maximize purchases and adoption';
+      const goalText = goal === 'revenue' 
+        ? 'Plans ordered from lowest to highest revenue potential' 
+        : 'Plans ordered from lowest to highest expected adoption';
       doc.text(goalText, 20, yPos);
-      yPos += 12;
+      yPos += 8;
+      
+      // Add price mismatch warning if present
+      if (results.priceMismatchWarning) {
+        doc.setFontSize(8);
+        doc.setTextColor(139, 92, 246);
+        doc.setFillColor(245, 240, 255);
+        const warningLines = doc.splitTextToSize(results.priceMismatchWarning, 170);
+        const warningHeight = (warningLines.length * 4) + 6;
+        doc.rect(20, yPos, 170, warningHeight, 'F');
+        doc.text(warningLines, 25, yPos + 4);
+        yPos += warningHeight + 4;
+      }
+      
+      yPos += 4;
       
       doc.setTextColor(0, 0, 0);
 
@@ -528,9 +544,16 @@ export const AnalysisTab = ({ projectKey }: AnalysisTabProps) => {
                 <h4 className="mb-3 text-lg font-semibold">Recommended Plans</h4>
                 <p className="mb-4 text-xs text-muted-foreground">
                   {goal === 'revenue' 
-                    ? 'Plans optimized to maximize total revenue'
-                    : 'Plans optimized to maximize purchases and adoption'}
+                    ? 'Plans ordered from lowest to highest revenue potential'
+                    : 'Plans ordered from lowest to highest expected adoption'}
                 </p>
+                {results.priceMismatchWarning && (
+                  <div className="mb-4 p-4 bg-accent/10 border border-accent/20 rounded-lg">
+                    <p className="text-sm text-foreground whitespace-pre-line">
+                      {results.priceMismatchWarning}
+                    </p>
+                  </div>
+                )}
                 <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
                   {results.plans.map((plan, idx) => {
                     const currency = results.currency || plan.currency || 'USD';
