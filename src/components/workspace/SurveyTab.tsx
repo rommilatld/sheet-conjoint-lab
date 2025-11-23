@@ -186,9 +186,12 @@ export const SurveyTab = ({ projectKey }: SurveyTabProps) => {
                 <Plus className="mr-2 h-4 w-4" />
                 Generate Link
               </>
-            )}
-          </Button>
-        </div>
+          )}
+        </Button>
+        <p className="text-xs text-muted-foreground mt-3 text-center">
+          Note: The introduction and question text above will be used for all survey links generated below
+        </p>
+      </div>
       </Card>
 
       {surveys.length > 0 && (

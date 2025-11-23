@@ -131,13 +131,31 @@ Deno.serve(async (req) => {
     if (surveyMetaResponse.ok) {
       const surveyMetaData = await surveyMetaResponse.json();
       const surveyRows = surveyMetaData.values || [];
-      // Find the row with matching surveyId (column A)
+      console.log(`Found ${surveyRows.length} survey rows`);
+      
+      // Find the row with matching surveyId (column A, index 0)
       const surveyRow = surveyRows.find((row: string[]) => row[0] === surveyId);
-      if (surveyRow && surveyRow.length >= 5) {
-        introduction = surveyRow[3] || ""; // Column D
-        question = surveyRow[4] || "Which subscription plan would you prefer?"; // Column E
+      
+      if (surveyRow) {
+        console.log(`Found survey row for ${surveyId}, length: ${surveyRow.length}`);
+        // Column D (index 3): Introduction
+        // Column E (index 4): Question
+        if (surveyRow.length >= 4 && surveyRow[3]) {
+          introduction = surveyRow[3];
+          console.log(`Loaded introduction: ${introduction.substring(0, 50)}...`);
+        }
+        if (surveyRow.length >= 5 && surveyRow[4]) {
+          question = surveyRow[4];
+          console.log(`Loaded question: ${question}`);
+        }
+      } else {
+        console.warn(`No survey row found for surveyId: ${surveyId}`);
       }
+    } else {
+      console.warn('Failed to load survey metadata from Surveys tab');
     }
+    
+    console.log(`Final introduction length: ${introduction.length}, question: ${question}`);
     
     // Load attributes from Google Sheets
     const response = await fetch(

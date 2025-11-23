@@ -30,7 +30,7 @@ const SurveyResponse = () => {
   const [surveyData, setSurveyData] = useState<any>(null);
   const [tasks, setTasks] = useState<Task[]>([]);
   const [introduction, setIntroduction] = useState("");
-  const [question, setQuestion] = useState("Which subscription plan would you prefer?");
+  const [question, setQuestion] = useState("");
   const [currentTask, setCurrentTask] = useState(0);
   const [responses, setResponses] = useState<{ [taskId: number]: number }>({});
   const [selectedOption, setSelectedOption] = useState<number | null>(null);
@@ -53,6 +53,13 @@ const SurveyResponse = () => {
       if (!data || !data.tasks) {
         throw new Error("Invalid survey data");
       }
+
+      console.log('Survey data loaded:', {
+        hasIntroduction: !!data.introduction,
+        introLength: data.introduction?.length || 0,
+        hasQuestion: !!data.question,
+        question: data.question,
+      });
 
       setSurveyData(data);
       setTasks(data.tasks);
@@ -170,8 +177,8 @@ const SurveyResponse = () => {
     <div className="container mx-auto max-w-4xl px-6 py-12">
       <div className="mb-8">
         <h1 className="mb-4 text-3xl font-bold">Research Survey</h1>
-        {introduction && (
-          <div className="mb-6 text-muted-foreground whitespace-pre-line">
+        {introduction && introduction.trim() && (
+          <div className="mb-6 text-base text-muted-foreground whitespace-pre-line leading-relaxed">
             {introduction}
           </div>
         )}
@@ -187,8 +194,8 @@ const SurveyResponse = () => {
               {Math.round(((currentTask) / tasks.length) * 100)}% complete
             </div>
           </div>
-          <p className="text-muted-foreground">
-            {question}
+          <p className="text-base font-medium text-foreground mb-4">
+            {question || "Which subscription plan would you prefer?"}
           </p>
         </div>
 
