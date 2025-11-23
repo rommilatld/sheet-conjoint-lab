@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -36,6 +36,28 @@ export const AnalysisTab = ({ projectKey }: AnalysisTabProps) => {
   const [numPlans, setNumPlans] = useState<number>(3);
   const [pricingStrategy, setPricingStrategy] = useState<'submitted' | 'suggested'>('suggested');
   const { toast } = useToast();
+
+  // Fetch attributes to set default number of plans based on pricing levels
+  useEffect(() => {
+    const fetchPricingLevels = async () => {
+      try {
+        const { data, error } = await supabase.functions.invoke('get-attributes', {
+          body: { projectKey },
+        });
+        
+        if (!error && data?.attributes) {
+          const pricingAttr = data.attributes.find((attr: any) => attr.isPriceAttribute);
+          if (pricingAttr && pricingAttr.levels && pricingAttr.levels.length > 0) {
+            setNumPlans(pricingAttr.levels.length);
+          }
+        }
+      } catch (err) {
+        console.error('Error fetching pricing levels:', err);
+      }
+    };
+    
+    fetchPricingLevels();
+  }, [projectKey]);
 
   const downloadPDF = () => {
     if (!results) return;
@@ -472,6 +494,13 @@ export const AnalysisTab = ({ projectKey }: AnalysisTabProps) => {
                 <strong>Note:</strong> Full results have been saved to the{" "}
                 <span className="font-mono text-xs">{results.analysisTabName}</span> tab in your Google Sheet
               </p>
+            </div>
+
+            <div className="flex justify-center pt-4">
+              <Button onClick={downloadPDF} variant="outline" size="lg">
+                <Download className="mr-2 h-4 w-4" />
+                Download PDF Report
+              </Button>
             </div>
           </div>
         </Card>
