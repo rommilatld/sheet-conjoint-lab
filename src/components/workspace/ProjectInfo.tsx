@@ -40,8 +40,8 @@ export const ProjectInfo = ({ projectKey, sheetUrl }: ProjectInfoProps) => {
                 <Copy className="h-4 w-4" />
               </Button>
             </div>
-            <p className="mt-2 text-sm text-muted-foreground">
-              Save this key to access your project anytime
+            <p className="mt-1.5 text-xs text-muted-foreground">
+              Keep this key safe - you'll need it to access your project
             </p>
           </div>
 
@@ -57,8 +57,8 @@ export const ProjectInfo = ({ projectKey, sheetUrl }: ProjectInfoProps) => {
                 <ExternalLink className="h-4 w-4" />
               </Button>
             </div>
-            <p className="mt-2 text-sm text-muted-foreground">
-              All your project data is stored here
+            <p className="mt-1.5 text-xs text-muted-foreground">
+              All your data is stored in this Google Sheet
             </p>
           </div>
         </div>

@@ -139,6 +139,9 @@ export const SurveyTab = ({ projectKey }: SurveyTabProps) => {
               onKeyPress={(e) => e.key === "Enter" && generateSurveyLink()}
               className="mt-2"
             />
+            <p className="mt-1 text-xs text-muted-foreground">
+              Give this survey a descriptive name to track responses
+            </p>
           </div>
           <div className="flex items-end">
             <Button

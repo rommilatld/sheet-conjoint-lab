@@ -18,7 +18,7 @@ interface Attribute {
 
 export const AttributesTab = ({ projectKey }: AttributesTabProps) => {
   const [attributes, setAttributes] = useState<Attribute[]>([
-    { name: "", levels: ["", ""] },
+    { name: "Pricing", levels: ["", ""] },
   ]);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -120,8 +120,8 @@ export const AttributesTab = ({ projectKey }: AttributesTabProps) => {
       <div className="space-y-6">
         <div>
           <h2 className="mb-2 text-2xl font-semibold">Attributes & Levels</h2>
-          <p className="text-muted-foreground">
-            Define the features and options for your conjoint study
+          <p className="text-sm text-muted-foreground">
+            Define the features and options for your conjoint study. Each attribute should have at least 2 levels.
           </p>
         </div>
 
@@ -141,18 +141,29 @@ export const AttributesTab = ({ projectKey }: AttributesTabProps) => {
               </div>
 
               <div className="space-y-4">
-                <Input
-                  placeholder="e.g., Price, Storage, Speed"
-                  value={attr.name}
-                  onChange={(e) => updateAttributeName(attrIndex, e.target.value)}
-                />
+                <div>
+                  <Label htmlFor={`attr-name-${attrIndex}`}>Attribute Name</Label>
+                  <Input
+                    id={`attr-name-${attrIndex}`}
+                    placeholder="e.g., Pricing, Storage, Speed"
+                    value={attr.name}
+                    onChange={(e) => updateAttributeName(attrIndex, e.target.value)}
+                    className="mt-1.5"
+                  />
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    Enter a descriptive name for this feature
+                  </p>
+                </div>
 
                 <div className="space-y-2">
                   <Label className="text-sm">Levels</Label>
+                  <p className="text-xs text-muted-foreground mb-2">
+                    Define the different options for this attribute (minimum 2)
+                  </p>
                   {attr.levels.map((level, levelIndex) => (
                     <div key={levelIndex} className="flex gap-2">
                       <Input
-                        placeholder={`Level ${levelIndex + 1}`}
+                        placeholder={attr.name === "Pricing" ? `e.g., $${(levelIndex + 1) * 10}` : `Level ${levelIndex + 1}`}
                         value={level}
                         onChange={(e) =>
                           updateLevel(attrIndex, levelIndex, e.target.value)

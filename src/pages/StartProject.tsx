@@ -165,6 +165,9 @@ const StartProject = () => {
                 onChange={(e) => setSheetUrl(e.target.value)}
                 className="mt-2"
               />
+              <p className="mt-1.5 text-xs text-muted-foreground">
+                Paste the full URL from your browser's address bar
+              </p>
             </div>
 
             {error && (
