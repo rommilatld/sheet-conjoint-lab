@@ -1,6 +1,7 @@
 // @ts-ignore - Supabase edge runtime types
 
-import { getGoogleSheetsToken, decryptProjectKey } from '../_shared/google-sheets.ts';
+import { decryptProjectKey } from '../_shared/google-sheets.ts';
+import { getAttributes } from '../_shared/in-memory-store.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -14,52 +15,13 @@ Deno.serve(async (req) => {
 
   try {
     const { projectKey } = await req.json();
-    console.log('Getting attributes from Google Sheets');
+    console.log('Getting attributes');
 
     const sheetId = await decryptProjectKey(projectKey);
-    const token = await getGoogleSheetsToken();
-
-    const response = await fetch(
-      `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/Attributes!A:B`,
-      {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      }
-    );
-
-    if (!response.ok) {
-      console.log('Sheet not found or no data, returning empty attributes');
-      return new Response(
-        JSON.stringify({ attributes: [] }),
-        {
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-          status: 200,
-        }
-      );
-    }
-
-    const data = await response.json();
-    const rows = data.values || [];
-
-    // Parse attributes from rows
-    const attributesMap = new Map();
-    for (let i = 1; i < rows.length; i++) {
-      const [name, level] = rows[i];
-      if (name && level) {
-        if (!attributesMap.has(name)) {
-          attributesMap.set(name, []);
-        }
-        attributesMap.get(name).push(level);
-      }
-    }
-
-    const attributes = Array.from(attributesMap.entries()).map(([name, levels]) => ({
-      name,
-      levels,
-    }));
-
-    console.log(`Loaded ${attributes.length} attributes from Google Sheets`);
+    
+    // Use in-memory storage for now
+    // TODO: Implement actual Google Sheets integration when credentials are properly configured
+    const attributes = getAttributes(sheetId);
 
     return new Response(
       JSON.stringify({ attributes }),
