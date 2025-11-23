@@ -65,6 +65,14 @@ const StartProject = () => {
     });
   };
 
+  const copyServiceAccountEmail = () => {
+    navigator.clipboard.writeText(serviceAccountEmail);
+    toast({
+      title: "Copied!",
+      description: "Service account email copied to clipboard",
+    });
+  };
+
   const downloadKey = () => {
     const blob = new Blob([projectKey], { type: "text/plain" });
     const url = URL.createObjectURL(blob);
@@ -139,9 +147,17 @@ const StartProject = () => {
             <h2 className="mb-3 text-lg font-semibold">Setup Instructions</h2>
             <ol className="space-y-2 text-sm text-muted-foreground">
               <li>1. Create a new Google Sheet or use an existing one</li>
-              <li>
-                2. Share the sheet with:{" "}
+              <li className="flex items-center gap-2">
+                <span>2. Share the sheet with:{" "}</span>
                 <code className="rounded bg-muted px-1 py-0.5 text-xs">{serviceAccountEmail}</code>
+                <Button 
+                  variant="ghost" 
+                  size="icon" 
+                  className="h-6 w-6" 
+                  onClick={copyServiceAccountEmail}
+                >
+                  <Copy className="h-3 w-3" />
+                </Button>
               </li>
               <li>
                 3. Give it <strong>Editor</strong> permissions
