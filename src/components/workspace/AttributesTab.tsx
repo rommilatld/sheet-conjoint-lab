@@ -9,38 +9,43 @@ import { Loader2, Plus, Trash2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { TabNavigation } from "./TabNavigation";
-
 interface AttributesTabProps {
   projectKey: string;
   onNavigate?: (tab: string) => void;
 }
-
 interface Attribute {
   name: string;
   levels: string[];
   isPriceAttribute?: boolean;
   currency?: string;
 }
-
-export const AttributesTab = ({ projectKey, onNavigate }: AttributesTabProps) => {
-  const [attributes, setAttributes] = useState<Attribute[]>([
-    { name: "Pricing", levels: ["", ""] },
-  ]);
+export const AttributesTab = ({
+  projectKey,
+  onNavigate
+}: AttributesTabProps) => {
+  const [attributes, setAttributes] = useState<Attribute[]>([{
+    name: "Pricing",
+    levels: ["", ""]
+  }]);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
-  const { toast } = useToast();
-
+  const {
+    toast
+  } = useToast();
   useEffect(() => {
     loadAttributes();
   }, [projectKey]);
-
   const loadAttributes = async () => {
     setLoading(true);
     try {
-      const { data, error } = await supabase.functions.invoke('get-attributes', {
-        body: { projectKey },
+      const {
+        data,
+        error
+      } = await supabase.functions.invoke('get-attributes', {
+        body: {
+          projectKey
+        }
       });
-
       if (!error && data && data.attributes && data.attributes.length > 0) {
         setAttributes(data.attributes);
       }
@@ -50,37 +55,42 @@ export const AttributesTab = ({ projectKey, onNavigate }: AttributesTabProps) =>
       setLoading(false);
     }
   };
-
   const saveAttributes = async () => {
     setSaving(true);
     try {
-      const { error } = await supabase.functions.invoke('save-attributes', {
-        body: { projectKey, attributes },
+      const {
+        error
+      } = await supabase.functions.invoke('save-attributes', {
+        body: {
+          projectKey,
+          attributes
+        }
       });
-
       if (error) {
         throw new Error("Failed to save attributes");
       }
-
       toast({
         title: "Saved!",
-        description: "Attributes saved to your Google Sheet",
+        description: "Attributes saved to your Google Sheet"
       });
     } catch (error: any) {
       toast({
         title: "Error",
         description: error.message,
-        variant: "destructive",
+        variant: "destructive"
       });
     } finally {
       setSaving(false);
     }
   };
-
   const addAttribute = () => {
-    setAttributes([...attributes, { name: "", levels: ["", ""], isPriceAttribute: false, currency: "USD" }]);
+    setAttributes([...attributes, {
+      name: "",
+      levels: ["", ""],
+      isPriceAttribute: false,
+      currency: "USD"
+    }]);
   };
-
   const togglePriceAttribute = (index: number, checked: boolean) => {
     const updated = [...attributes];
     // If marking as price attribute, unmark all others
@@ -93,74 +103,53 @@ export const AttributesTab = ({ projectKey, onNavigate }: AttributesTabProps) =>
     }
     setAttributes(updated);
   };
-
   const updateCurrency = (index: number, currency: string) => {
     const updated = [...attributes];
     updated[index].currency = currency;
     setAttributes(updated);
   };
-
   const removeAttribute = (index: number) => {
     setAttributes(attributes.filter((_, i) => i !== index));
   };
-
   const updateAttributeName = (index: number, name: string) => {
     const updated = [...attributes];
     updated[index].name = name;
     setAttributes(updated);
   };
-
   const updateLevel = (attrIndex: number, levelIndex: number, value: string) => {
     const updated = [...attributes];
     updated[attrIndex].levels[levelIndex] = value;
     setAttributes(updated);
   };
-
   const addLevel = (attrIndex: number) => {
     const updated = [...attributes];
     updated[attrIndex].levels.push("");
     setAttributes(updated);
   };
-
   const removeLevel = (attrIndex: number, levelIndex: number) => {
     const updated = [...attributes];
     if (updated[attrIndex].levels.length > 2) {
-      updated[attrIndex].levels = updated[attrIndex].levels.filter(
-        (_, i) => i !== levelIndex
-      );
+      updated[attrIndex].levels = updated[attrIndex].levels.filter((_, i) => i !== levelIndex);
       setAttributes(updated);
     }
   };
-
   if (loading) {
-    return (
-      <Card className="shadow-card p-8 text-center">
+    return <Card className="shadow-card p-8 text-center">
         <Loader2 className="mx-auto h-8 w-8 animate-spin text-primary" />
-      </Card>
-    );
+      </Card>;
   }
-
-  return (
-    <Card className="shadow-card p-8">
+  return <Card className="shadow-card p-8">
       <div className="space-y-6">
         <div>
           <h2 className="mb-2 text-2xl font-semibold">Attributes & Levels</h2>
-          <p className="text-sm text-muted-foreground">
-            Define the features and options for your conjoint study. Each attribute should have at least 2 levels.
-          </p>
+          <p className="text-sm text-muted-foreground">Define the features and options for your conjoint study. Each attribute should have at least 2 levels. Use “included” and “not included” as the levels for any attribute that doesn’t have a numeric or quantity-based value.   </p>
         </div>
 
         <div className="space-y-6">
-          {attributes.map((attr, attrIndex) => (
-            <div key={attrIndex} className="rounded-lg border p-6">
+          {attributes.map((attr, attrIndex) => <div key={attrIndex} className="rounded-lg border p-6">
               <div className="mb-4 flex items-center justify-between">
                 <Label className="text-base">Attribute {attrIndex + 1}</Label>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => removeAttribute(attrIndex)}
-                  disabled={attributes.length === 1}
-                >
+                <Button variant="ghost" size="sm" onClick={() => removeAttribute(attrIndex)} disabled={attributes.length === 1}>
                   <Trash2 className="h-4 w-4" />
                 </Button>
               </div>
@@ -168,13 +157,7 @@ export const AttributesTab = ({ projectKey, onNavigate }: AttributesTabProps) =>
               <div className="space-y-4">
                 <div>
                   <Label htmlFor={`attr-name-${attrIndex}`}>Attribute Name</Label>
-                  <Input
-                    id={`attr-name-${attrIndex}`}
-                    placeholder="e.g., Pricing, Storage, Speed"
-                    value={attr.name}
-                    onChange={(e) => updateAttributeName(attrIndex, e.target.value)}
-                    className="mt-1.5"
-                  />
+                  <Input id={`attr-name-${attrIndex}`} placeholder="e.g., Pricing, Storage, Speed" value={attr.name} onChange={e => updateAttributeName(attrIndex, e.target.value)} className="mt-1.5" />
                   <p className="mt-1 text-xs text-muted-foreground">
                     Enter a descriptive name for this feature
                   </p>
@@ -182,22 +165,14 @@ export const AttributesTab = ({ projectKey, onNavigate }: AttributesTabProps) =>
 
                 <div className="flex items-center gap-4 p-3 rounded-lg bg-muted/30">
                   <div className="flex items-center space-x-2">
-                    <Checkbox
-                      id={`price-${attrIndex}`}
-                      checked={attr.isPriceAttribute || false}
-                      onCheckedChange={(checked) => togglePriceAttribute(attrIndex, checked as boolean)}
-                    />
+                    <Checkbox id={`price-${attrIndex}`} checked={attr.isPriceAttribute || false} onCheckedChange={checked => togglePriceAttribute(attrIndex, checked as boolean)} />
                     <Label htmlFor={`price-${attrIndex}`} className="text-sm font-medium cursor-pointer">
                       Price Attribute
                     </Label>
                   </div>
-                  {attr.isPriceAttribute && (
-                    <div className="flex items-center gap-2">
+                  {attr.isPriceAttribute && <div className="flex items-center gap-2">
                       <Label htmlFor={`currency-${attrIndex}`} className="text-sm">Currency:</Label>
-                      <Select
-                        value={attr.currency || "USD"}
-                        onValueChange={(value) => updateCurrency(attrIndex, value)}
-                      >
+                      <Select value={attr.currency || "USD"} onValueChange={value => updateCurrency(attrIndex, value)}>
                         <SelectTrigger id={`currency-${attrIndex}`} className="w-24">
                           <SelectValue />
                         </SelectTrigger>
@@ -210,8 +185,7 @@ export const AttributesTab = ({ projectKey, onNavigate }: AttributesTabProps) =>
                           <SelectItem value="AUD">AUD</SelectItem>
                         </SelectContent>
                       </Select>
-                    </div>
-                  )}
+                    </div>}
                 </div>
 
                 <div className="space-y-2">
@@ -219,59 +193,42 @@ export const AttributesTab = ({ projectKey, onNavigate }: AttributesTabProps) =>
                   <p className="text-xs text-muted-foreground mb-2">
                     Define the different options for this attribute (minimum 2)
                   </p>
-                  {attr.levels.map((level, levelIndex) => (
-                    <div key={levelIndex} className="flex gap-2">
-                      <Input
-                        placeholder={attr.isPriceAttribute ? "e.g., 9.99" : `Level ${levelIndex + 1}`}
-                        value={level}
-                        onChange={(e) => {
-                          const value = e.target.value;
-                          // If price attribute, only allow numbers and one decimal point with max 2 decimals
-                          if (attr.isPriceAttribute) {
-                            if (value === '' || /^\d*\.?\d{0,2}$/.test(value)) {
-                              updateLevel(attrIndex, levelIndex, value);
-                            }
-                          } else {
-                            updateLevel(attrIndex, levelIndex, value);
-                          }
-                        }}
-                        onBlur={(e) => {
-                          // Validate on blur for price attributes
-                          if (attr.isPriceAttribute && e.target.value.trim()) {
-                            const numValue = parseFloat(e.target.value);
-                            if (isNaN(numValue)) {
-                              toast({
-                                title: "Invalid Price",
-                                description: "Price levels must be numerical values only",
-                                variant: "destructive",
-                              });
-                              updateLevel(attrIndex, levelIndex, "");
-                            }
-                          }
-                        }}
-                      />
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => removeLevel(attrIndex, levelIndex)}
-                        disabled={attr.levels.length <= 2}
-                      >
+                  {attr.levels.map((level, levelIndex) => <div key={levelIndex} className="flex gap-2">
+                      <Input placeholder={attr.isPriceAttribute ? "e.g., 9.99" : `Level ${levelIndex + 1}`} value={level} onChange={e => {
+                  const value = e.target.value;
+                  // If price attribute, only allow numbers and one decimal point with max 2 decimals
+                  if (attr.isPriceAttribute) {
+                    if (value === '' || /^\d*\.?\d{0,2}$/.test(value)) {
+                      updateLevel(attrIndex, levelIndex, value);
+                    }
+                  } else {
+                    updateLevel(attrIndex, levelIndex, value);
+                  }
+                }} onBlur={e => {
+                  // Validate on blur for price attributes
+                  if (attr.isPriceAttribute && e.target.value.trim()) {
+                    const numValue = parseFloat(e.target.value);
+                    if (isNaN(numValue)) {
+                      toast({
+                        title: "Invalid Price",
+                        description: "Price levels must be numerical values only",
+                        variant: "destructive"
+                      });
+                      updateLevel(attrIndex, levelIndex, "");
+                    }
+                  }
+                }} />
+                      <Button variant="ghost" size="sm" onClick={() => removeLevel(attrIndex, levelIndex)} disabled={attr.levels.length <= 2}>
                         <Trash2 className="h-4 w-4" />
                       </Button>
-                    </div>
-                  ))}
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => addLevel(attrIndex)}
-                  >
+                    </div>)}
+                  <Button variant="outline" size="sm" onClick={() => addLevel(attrIndex)}>
                     <Plus className="mr-2 h-4 w-4" />
                     Add Level
                   </Button>
                 </div>
               </div>
-            </div>
-          ))}
+            </div>)}
         </div>
 
         <div className="flex gap-3">
@@ -279,29 +236,15 @@ export const AttributesTab = ({ projectKey, onNavigate }: AttributesTabProps) =>
             <Plus className="mr-2 h-4 w-4" />
             Add Attribute
           </Button>
-          <Button
-            onClick={saveAttributes}
-            disabled={saving}
-            className="gradient-primary"
-          >
-            {saving ? (
-              <>
+          <Button onClick={saveAttributes} disabled={saving} className="gradient-primary">
+            {saving ? <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                 Saving...
-              </>
-            ) : (
-              "Save Attributes"
-            )}
+              </> : "Save Attributes"}
           </Button>
         </div>
 
-        <TabNavigation
-          onPrevious={() => onNavigate?.("info")}
-          onNext={() => onNavigate?.("design")}
-          previousLabel="Project Info"
-          nextLabel="Preview"
-        />
+        <TabNavigation onPrevious={() => onNavigate?.("info")} onNext={() => onNavigate?.("design")} previousLabel="Project Info" nextLabel="Preview" />
       </div>
-    </Card>
-  );
+    </Card>;
 };
