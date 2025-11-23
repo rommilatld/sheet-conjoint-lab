@@ -17,12 +17,23 @@ interface Response {
 interface Attribute {
   name: string;
   levels: string[];
+  isPriceAttribute?: boolean;
+  currency?: string;
 }
 
 // Generate pricing plans based on utilities
-function generatePlans(numPlans: number, attributes: Attribute[], utilities: { [key: string]: number }) {
+function generatePlans(
+  numPlans: number, 
+  attributes: Attribute[], 
+  utilities: { [key: string]: number },
+  responses: Response[]
+) {
   const plans = [];
   const planNames = ['Good', 'Better', 'Best', 'Premium', 'Enterprise', 'Starter', 'Professional', 'Ultimate', 'Advanced', 'Elite'];
+  
+  // Find price attribute if it exists
+  const priceAttr = attributes.find(attr => attr.isPriceAttribute);
+  const currency = priceAttr?.currency || 'USD';
   
   // Sort levels by utility for each attribute
   const sortedLevels: { [key: string]: Array<{ level: string; utility: number }> } = {};
@@ -54,20 +65,34 @@ function generatePlans(numPlans: number, attributes: Attribute[], utilities: { [
       }
     });
     
-    // Calculate willingness to pay based on utility
-    // Higher utility = higher WTP. Scale appropriately
-    const basePrice = 10;
-    const utilityMultiplier = 20;
-    const willingnessToPay = Math.max(0, basePrice + totalUtility * utilityMultiplier);
-    
-    // Suggested price is slightly below WTP for good conversion
-    const suggestedPrice = Math.round(willingnessToPay * 0.85);
+    // Determine pricing based on whether we have a price attribute
+    let willingnessToPay: number;
+    let suggestedPrice: number;
+
+    if (priceAttr && features[priceAttr.name]) {
+      // Use actual price data from the price attribute
+      const priceLevel = features[priceAttr.name];
+      // Extract numeric value from price level (e.g., "$10" or "10" -> 10)
+      const priceMatch = priceLevel.match(/[\d.]+/);
+      const basePrice = priceMatch ? parseFloat(priceMatch[0]) : 50;
+      
+      // Calculate willingness to pay based on utility relative to this price
+      willingnessToPay = basePrice + (totalUtility * 5);
+      suggestedPrice = Math.round(basePrice);
+    } else {
+      // No price attribute - use utility-based estimation
+      const basePrice = 10;
+      const utilityMultiplier = 20;
+      willingnessToPay = Math.max(0, basePrice + totalUtility * utilityMultiplier);
+      suggestedPrice = Math.round(willingnessToPay * 0.85);
+    }
     
     plans.push({
       name: planNames[i] || `Plan ${i + 1}`,
       features,
       suggestedPrice,
-      willingnessToPay
+      willingnessToPay,
+      currency
     });
   }
   
@@ -122,13 +147,14 @@ function runConjointAnalysis(responses: Response[], attributes: Attribute[], num
   });
   
   // Generate plans
-  const plans = generatePlans(numPlans, attributes, utilities);
+  const plans = generatePlans(numPlans, attributes, utilities, responses);
   
   return {
     utilities,
     importances,
     totalResponses: responses.length,
     plans,
+    currency: attributes.find(a => a.isPriceAttribute)?.currency || 'USD',
   };
 }
 
@@ -146,7 +172,7 @@ Deno.serve(async (req) => {
     
     // Read attributes
     const attrResponse = await fetch(
-      `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/Attributes!A:B`,
+      `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/Attributes!A:D`,
       {
         headers: {
           Authorization: `Bearer ${token}`,
@@ -163,20 +189,33 @@ Deno.serve(async (req) => {
     
     // Parse attributes
     const attributesMap = new Map();
+    const priceInfo = new Map();
     for (let i = 1; i < attrRows.length; i++) {
-      const [name, level] = attrRows[i];
+      const [name, level, isPriceAttr, currency] = attrRows[i];
       if (name && level) {
         if (!attributesMap.has(name)) {
           attributesMap.set(name, []);
+          // Store price info only once per attribute (from first row)
+          if (isPriceAttr) {
+            priceInfo.set(name, {
+              isPriceAttribute: isPriceAttr === 'TRUE',
+              currency: currency || 'USD'
+            });
+          }
         }
         attributesMap.get(name).push(level);
       }
     }
 
-    const attributes: Attribute[] = Array.from(attributesMap.entries()).map(([name, levels]) => ({
-      name,
-      levels,
-    }));
+    const attributes: Attribute[] = Array.from(attributesMap.entries()).map(([name, levels]) => {
+      const info = priceInfo.get(name) || {};
+      return {
+        name,
+        levels: levels as string[],
+        isPriceAttribute: info.isPriceAttribute || false,
+        currency: info.currency || 'USD'
+      };
+    });
     
     // Read responses
     const respResponse = await fetch(
@@ -306,6 +345,7 @@ Deno.serve(async (req) => {
           totalResponses: results.totalResponses,
           analysisTabName,
           plans: results.plans,
+          currency: results.currency,
         },
       }),
       {

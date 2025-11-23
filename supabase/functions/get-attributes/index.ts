@@ -24,7 +24,7 @@ Deno.serve(async (req) => {
       const token = await getGoogleSheetsToken();
 
       const response = await fetch(
-        `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/Attributes!A:B`,
+        `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/Attributes!A:D`,
         {
           headers: {
             Authorization: `Bearer ${token}`,
@@ -41,20 +41,33 @@ Deno.serve(async (req) => {
 
       // Parse attributes from rows
       const attributesMap = new Map();
+      const priceInfo = new Map();
       for (let i = 1; i < rows.length; i++) {
-        const [name, level] = rows[i];
+        const [name, level, isPriceAttr, currency] = rows[i];
         if (name && level) {
           if (!attributesMap.has(name)) {
             attributesMap.set(name, []);
+            // Store price info only once per attribute (from first row)
+            if (isPriceAttr) {
+              priceInfo.set(name, {
+                isPriceAttribute: isPriceAttr === 'TRUE',
+                currency: currency || 'USD'
+              });
+            }
           }
           attributesMap.get(name).push(level);
         }
       }
 
-      const attributes = Array.from(attributesMap.entries()).map(([name, levels]) => ({
-        name,
-        levels,
-      }));
+      const attributes = Array.from(attributesMap.entries()).map(([name, levels]) => {
+        const info = priceInfo.get(name) || {};
+        return {
+          name,
+          levels,
+          isPriceAttribute: info.isPriceAttribute || false,
+          currency: info.currency || 'USD'
+        };
+      });
 
       console.log(`Loaded ${attributes.length} attributes from Google Sheets`);
       

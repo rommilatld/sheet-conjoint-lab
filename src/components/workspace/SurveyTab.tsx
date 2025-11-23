@@ -128,22 +128,17 @@ export const SurveyTab = ({ projectKey }: SurveyTabProps) => {
           </p>
         </div>
 
-        <div className="flex gap-3">
-          <div className="flex-1">
-            <Label htmlFor="surveyName">Survey Name</Label>
+        <div className="space-y-2">
+          <Label htmlFor="surveyName">Survey Name</Label>
+          <div className="flex gap-3">
             <Input
               id="surveyName"
               placeholder="e.g., Pricing Study Wave 1"
               value={newSurveyName}
               onChange={(e) => setNewSurveyName(e.target.value)}
               onKeyPress={(e) => e.key === "Enter" && generateSurveyLink()}
-              className="mt-2"
+              className="flex-1"
             />
-            <p className="mt-1 text-xs text-muted-foreground">
-              Give this survey a descriptive name to track responses
-            </p>
-          </div>
-          <div className="flex items-end">
             <Button
               onClick={generateSurveyLink}
               disabled={generating || !newSurveyName.trim()}
@@ -162,6 +157,9 @@ export const SurveyTab = ({ projectKey }: SurveyTabProps) => {
               )}
             </Button>
           </div>
+          <p className="text-xs text-muted-foreground">
+            Give this survey a descriptive name to track responses
+          </p>
         </div>
       </Card>
 

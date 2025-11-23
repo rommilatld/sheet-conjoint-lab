@@ -17,6 +17,7 @@ interface Plan {
   features: { [key: string]: string };
   suggestedPrice: number;
   willingnessToPay: number;
+  currency?: string;
 }
 
 interface AnalysisResults {
@@ -25,6 +26,7 @@ interface AnalysisResults {
   totalResponses: number;
   analysisTabName: string;
   plans: Plan[];
+  currency?: string;
 }
 
 export const AnalysisTab = ({ projectKey }: AnalysisTabProps) => {
@@ -37,62 +39,164 @@ export const AnalysisTab = ({ projectKey }: AnalysisTabProps) => {
     if (!results) return;
 
     const doc = new jsPDF();
+    const currency = results.currency || 'USD';
+    const currencySymbol = currency === 'USD' ? '$' : currency === 'EUR' ? '€' : currency === 'GBP' ? '£' : currency;
     let yPos = 20;
 
     // Title
-    doc.setFontSize(18);
-    doc.text("Plan Builder Analysis Report", 20, yPos);
-    yPos += 10;
+    doc.setFontSize(20);
+    doc.setFont(undefined, 'bold');
+    doc.text("Plan Builder Analysis Report", 105, yPos, { align: 'center' });
+    yPos += 12;
 
+    // Metadata box
     doc.setFontSize(10);
-    doc.text(`Total Responses: ${results.totalResponses}`, 20, yPos);
-    yPos += 10;
-    doc.text(`Analysis Date: ${new Date().toLocaleDateString()}`, 20, yPos);
-    yPos += 15;
+    doc.setFont(undefined, 'normal');
+    doc.setFillColor(245, 245, 250);
+    doc.rect(20, yPos, 170, 16, 'F');
+    yPos += 6;
+    doc.text(`Total Responses: ${results.totalResponses}`, 25, yPos);
+    yPos += 5;
+    doc.text(`Analysis Date: ${new Date().toLocaleDateString()}`, 25, yPos);
+    yPos += 5;
+    doc.text(`Currency: ${currency}`, 25, yPos);
+    yPos += 12;
 
     // Attribute Importances
-    doc.setFontSize(14);
+    doc.setFontSize(16);
+    doc.setFont(undefined, 'bold');
     doc.text("Attribute Importances", 20, yPos);
     yPos += 8;
     
-    doc.setFontSize(10);
+    doc.setFontSize(9);
+    doc.setTextColor(100, 100, 100);
+    doc.text("Shows which attributes have the most influence on choices", 20, yPos);
+    yPos += 8;
+    
+    doc.setFont(undefined, 'normal');
+    doc.setTextColor(0, 0, 0);
     Object.entries(results.importances)
       .sort(([, a], [, b]) => b - a)
       .forEach(([attr, importance]) => {
-        doc.text(`${attr}: ${importance.toFixed(1)}%`, 25, yPos);
-        yPos += 6;
+        doc.setFontSize(10);
+        doc.text(`${attr}`, 25, yPos);
+        doc.text(`${importance.toFixed(1)}%`, 180, yPos, { align: 'right' });
+        
+        // Draw progress bar
+        const barWidth = 120;
+        const barHeight = 4;
+        const filledWidth = (importance / 100) * barWidth;
+        doc.setDrawColor(200, 200, 200);
+        doc.setFillColor(200, 200, 200);
+        doc.rect(25, yPos + 2, barWidth, barHeight, 'F');
+        doc.setFillColor(139, 92, 246); // Purple
+        doc.rect(25, yPos + 2, filledWidth, barHeight, 'F');
+        
+        yPos += 10;
       });
+    yPos += 8;
+
+    // Part-Worth Utilities
+    if (yPos > 230) {
+      doc.addPage();
+      yPos = 20;
+    }
+    
+    doc.setFontSize(16);
+    doc.setFont(undefined, 'bold');
+    doc.text("Part-Worth Utilities", 20, yPos);
+    yPos += 8;
+    
+    doc.setFontSize(9);
+    doc.setFont(undefined, 'normal');
+    doc.setTextColor(100, 100, 100);
+    doc.text("Higher values indicate more preferred attribute levels", 20, yPos);
+    yPos += 10;
+    
+    doc.setTextColor(0, 0, 0);
+    doc.setFontSize(9);
+    doc.setFont(undefined, 'bold');
+    doc.text("Attribute:Level", 25, yPos);
+    doc.text("Utility", 180, yPos, { align: 'right' });
+    yPos += 1;
+    doc.setLineWidth(0.5);
+    doc.line(25, yPos, 185, yPos);
+    yPos += 4;
+    
+    doc.setFont(undefined, 'normal');
+    Object.entries(results.utilities).forEach(([key, utility]) => {
+      if (yPos > 270) {
+        doc.addPage();
+        yPos = 20;
+      }
+      doc.setFontSize(9);
+      doc.text(key, 25, yPos);
+      doc.text(utility.toFixed(3), 180, yPos, { align: 'right' });
+      yPos += 5;
+    });
     yPos += 10;
 
-    // Plans
+    // Recommended Plans
     if (results.plans && results.plans.length > 0) {
-      doc.setFontSize(14);
+      doc.addPage();
+      yPos = 20;
+      
+      doc.setFontSize(16);
+      doc.setFont(undefined, 'bold');
       doc.text("Recommended Plans", 20, yPos);
       yPos += 8;
+      
+      doc.setFontSize(9);
+      doc.setFont(undefined, 'normal');
+      doc.setTextColor(100, 100, 100);
+      doc.text("Pricing plans optimized based on feature utilities and willingness to pay", 20, yPos);
+      yPos += 12;
+      
+      doc.setTextColor(0, 0, 0);
 
       results.plans.forEach((plan, idx) => {
-        if (yPos > 270) {
+        if (yPos > 220) {
           doc.addPage();
           yPos = 20;
         }
 
-        doc.setFontSize(12);
-        doc.text(`${plan.name}`, 25, yPos);
+        // Plan box
+        doc.setDrawColor(139, 92, 246);
+        doc.setLineWidth(0.5);
+        doc.rect(20, yPos - 5, 170, 8, 'S');
+        
+        doc.setFontSize(14);
+        doc.setFont(undefined, 'bold');
+        doc.text(plan.name, 25, yPos);
+        yPos += 10;
+        
+        // Pricing
+        doc.setFontSize(20);
+        doc.setTextColor(139, 92, 246);
+        doc.text(`${currencySymbol}${plan.suggestedPrice}`, 25, yPos);
+        doc.setFontSize(10);
+        doc.setTextColor(100, 100, 100);
+        doc.text('/month', 25 + doc.getTextWidth(`${currencySymbol}${plan.suggestedPrice}`) * (20/10), yPos);
+        yPos += 8;
+        
+        doc.setFontSize(9);
+        doc.text(`Willingness to Pay: ${currencySymbol}${plan.willingnessToPay.toFixed(2)}`, 25, yPos);
+        yPos += 10;
+
+        // Features
+        doc.setTextColor(0, 0, 0);
+        doc.setFontSize(10);
+        doc.setFont(undefined, 'bold');
+        doc.text("Features:", 25, yPos);
         yPos += 6;
         
-        doc.setFontSize(10);
-        doc.text(`Suggested Price: $${plan.suggestedPrice}/month`, 30, yPos);
-        yPos += 5;
-        doc.text(`Willingness to Pay: $${plan.willingnessToPay.toFixed(2)}/month`, 30, yPos);
-        yPos += 7;
-
-        doc.text("Features:", 30, yPos);
-        yPos += 5;
+        doc.setFont(undefined, 'normal');
+        doc.setFontSize(9);
         Object.entries(plan.features).forEach(([attr, level]) => {
-          doc.text(`• ${attr}: ${level}`, 35, yPos);
+          doc.text(`• ${attr}: ${level}`, 30, yPos);
           yPos += 5;
         });
-        yPos += 5;
+        yPos += 8;
       });
     }
 
@@ -273,26 +377,31 @@ export const AnalysisTab = ({ projectKey }: AnalysisTabProps) => {
                   Pricing plans optimized based on feature utilities and willingness to pay
                 </p>
                 <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                  {results.plans.map((plan, idx) => (
-                    <Card key={idx} className="p-6 border-2 border-primary/20 hover:border-primary/40 transition-colors">
-                      <h5 className="text-lg font-bold mb-2">{plan.name}</h5>
-                      <div className="mb-4">
-                        <div className="text-3xl font-bold text-primary">${plan.suggestedPrice}</div>
-                        <div className="text-sm text-muted-foreground">/month</div>
-                        <div className="mt-1 text-xs text-muted-foreground">
-                          WTP: ${plan.willingnessToPay.toFixed(2)}
-                        </div>
-                      </div>
-                      <div className="space-y-2">
-                        <p className="text-xs font-semibold text-muted-foreground uppercase">Features:</p>
-                        {Object.entries(plan.features).map(([attr, level]) => (
-                          <div key={attr} className="text-sm">
-                            <span className="font-medium">{attr}:</span> {level}
+                  {results.plans.map((plan, idx) => {
+                    const currency = results.currency || plan.currency || 'USD';
+                    const currencySymbol = currency === 'USD' ? '$' : currency === 'EUR' ? '€' : currency === 'GBP' ? '£' : currency;
+                    
+                    return (
+                      <Card key={idx} className="p-6 border-2 border-primary/20 hover:border-primary/40 transition-colors">
+                        <h5 className="text-lg font-bold mb-2">{plan.name}</h5>
+                        <div className="mb-4">
+                          <div className="text-3xl font-bold text-primary">{currencySymbol}{plan.suggestedPrice}</div>
+                          <div className="text-sm text-muted-foreground">/month</div>
+                          <div className="mt-1 text-xs text-muted-foreground">
+                            WTP: {currencySymbol}{plan.willingnessToPay.toFixed(2)}
                           </div>
-                        ))}
-                      </div>
-                    </Card>
-                  ))}
+                        </div>
+                        <div className="space-y-2">
+                          <p className="text-xs font-semibold text-muted-foreground uppercase">Features:</p>
+                          {Object.entries(plan.features).map(([attr, level]) => (
+                            <div key={attr} className="text-sm">
+                              <span className="font-medium">{attr}:</span> {level}
+                            </div>
+                          ))}
+                        </div>
+                      </Card>
+                    );
+                  })}
                 </div>
               </div>
             )}
