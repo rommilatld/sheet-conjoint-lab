@@ -6,6 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Loader2 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { supabase } from "@/integrations/supabase/client";
 
 const OpenProject = () => {
   const [projectKey, setProjectKey] = useState("");
@@ -23,15 +24,12 @@ const OpenProject = () => {
       }
 
       // Validate project key by attempting to decrypt
-      const response = await fetch("/api/validate-key", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ projectKey }),
+      const { data, error: functionError } = await supabase.functions.invoke('validate-key', {
+        body: { projectKey },
       });
 
-      if (!response.ok) {
-        const data = await response.json();
-        throw new Error(data.error || "Invalid project key");
+      if (functionError || !data || !data.valid) {
+        throw new Error("Invalid project key");
       }
 
       // Navigate to workspace

@@ -5,6 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Loader2, Plus, Trash2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
 
 interface AttributesTabProps {
   projectKey: string;
@@ -30,17 +31,12 @@ export const AttributesTab = ({ projectKey }: AttributesTabProps) => {
   const loadAttributes = async () => {
     setLoading(true);
     try {
-      const response = await fetch("/api/get-attributes", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ projectKey }),
+      const { data, error } = await supabase.functions.invoke('get-attributes', {
+        body: { projectKey },
       });
 
-      if (response.ok) {
-        const data = await response.json();
-        if (data.attributes && data.attributes.length > 0) {
-          setAttributes(data.attributes);
-        }
+      if (!error && data && data.attributes && data.attributes.length > 0) {
+        setAttributes(data.attributes);
       }
     } catch (error) {
       console.error("Failed to load attributes:", error);
@@ -52,13 +48,11 @@ export const AttributesTab = ({ projectKey }: AttributesTabProps) => {
   const saveAttributes = async () => {
     setSaving(true);
     try {
-      const response = await fetch("/api/save-attributes", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ projectKey, attributes }),
+      const { error } = await supabase.functions.invoke('save-attributes', {
+        body: { projectKey, attributes },
       });
 
-      if (!response.ok) {
+      if (error) {
         throw new Error("Failed to save attributes");
       }
 

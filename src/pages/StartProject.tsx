@@ -7,6 +7,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Loader2, CheckCircle, Copy, Download } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
 
 const StartProject = () => {
   const [sheetUrl, setSheetUrl] = useState("");
@@ -31,18 +32,18 @@ const StartProject = () => {
       const sheetId = match[1];
 
       // Call edge function to initialize project
-      const response = await fetch("/api/init-project", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ sheetId }),
+      const { data, error: functionError } = await supabase.functions.invoke('init-project', {
+        body: { sheetId },
       });
 
-      if (!response.ok) {
-        const data = await response.json();
-        throw new Error(data.error || "Failed to initialize project");
+      if (functionError) {
+        throw new Error(functionError.message || "Failed to initialize project");
       }
 
-      const data = await response.json();
+      if (!data || !data.projectKey) {
+        throw new Error("Failed to generate project key");
+      }
+
       setProjectKey(data.projectKey);
       
       toast({
