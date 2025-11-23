@@ -139,54 +139,6 @@ export const SurveyPreview = ({ attributes, projectKey }: SurveyPreviewProps) =>
 
   return (
     <div className="space-y-6">
-      <Card className="shadow-card p-6 bg-accent/5 border-primary/20">
-        <div className="mb-4">
-          <h3 className="text-xl font-semibold mb-2">Sample Size Guidelines</h3>
-          <p className="text-sm text-muted-foreground">
-            Recommended number of responses for statistical confidence
-          </p>
-        </div>
-
-        <div className="space-y-4">
-          <div className="flex items-center justify-between p-4 rounded-lg bg-background border border-border">
-            <div>
-              <div className="font-semibold text-lg">90% Confidence</div>
-              <p className="text-xs text-muted-foreground mt-1">High precision for critical business decisions</p>
-            </div>
-            <div className="text-right">
-              <div className="text-2xl font-bold text-primary">300+</div>
-              <p className="text-xs text-muted-foreground">responses</p>
-            </div>
-          </div>
-
-          <div className="flex items-center justify-between p-4 rounded-lg bg-background border border-border">
-            <div>
-              <div className="font-semibold text-lg">80% Confidence</div>
-              <p className="text-xs text-muted-foreground mt-1">Good balance for most research projects</p>
-            </div>
-            <div className="text-right">
-              <div className="text-2xl font-bold text-primary">200+</div>
-              <p className="text-xs text-muted-foreground">responses</p>
-            </div>
-          </div>
-
-          <div className="flex items-center justify-between p-4 rounded-lg bg-background border border-border">
-            <div>
-              <div className="font-semibold text-lg">70% Confidence</div>
-              <p className="text-xs text-muted-foreground mt-1">Acceptable for exploratory research</p>
-            </div>
-            <div className="text-right">
-              <div className="text-2xl font-bold text-primary">100+</div>
-              <p className="text-xs text-muted-foreground">responses</p>
-            </div>
-          </div>
-        </div>
-
-        <p className="mt-4 text-xs text-muted-foreground italic">
-          Note: These are general guidelines. Actual requirements may vary based on the number of attributes and alternatives in your survey design.
-        </p>
-      </Card>
-
       <Card className="shadow-card p-6">
         <div className="mb-6">
           <h2 className="text-2xl font-semibold mb-2">Survey Configuration</h2>
@@ -250,6 +202,68 @@ export const SurveyPreview = ({ attributes, projectKey }: SurveyPreviewProps) =>
         <div className="mb-6">
           <h3 className="text-xl font-semibold mb-2">Survey Preview</h3>
           <p className="text-muted-foreground text-sm">This is how your survey will appear to respondents</p>
+        </div>
+
+        <div className="mb-6">
+          <h4 className="text-base font-semibold mb-3">Attributes in Survey</h4>
+          <div className="rounded-lg border bg-muted/30 p-4">
+            <div className="flex flex-wrap gap-2">
+              {attributes.map((attr, idx) => (
+                <div key={idx} className="inline-flex items-center gap-2 rounded-md bg-background px-3 py-1.5 text-sm border">
+                  <span className="font-medium">{attr.name}</span>
+                  <span className="text-muted-foreground">({attr.levels.length} levels)</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        <div className="mb-6 rounded-lg bg-accent/5 border-primary/20 border p-5">
+          <div className="mb-4">
+            <h4 className="text-base font-semibold mb-2">Sample Size Guidelines</h4>
+            <p className="text-xs text-muted-foreground">
+              Recommended number of responses for statistical confidence
+            </p>
+          </div>
+
+          <div className="space-y-3">
+            <div className="flex items-center justify-between p-3 rounded-lg bg-background border border-border">
+              <div>
+                <div className="font-semibold">90% Confidence</div>
+                <p className="text-xs text-muted-foreground mt-0.5">High precision for critical decisions</p>
+              </div>
+              <div className="text-right">
+                <div className="text-xl font-bold text-primary">300+</div>
+                <p className="text-xs text-muted-foreground">responses</p>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-between p-3 rounded-lg bg-background border border-border">
+              <div>
+                <div className="font-semibold">80% Confidence</div>
+                <p className="text-xs text-muted-foreground mt-0.5">Good balance for most projects</p>
+              </div>
+              <div className="text-right">
+                <div className="text-xl font-bold text-primary">200+</div>
+                <p className="text-xs text-muted-foreground">responses</p>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-between p-3 rounded-lg bg-background border border-border">
+              <div>
+                <div className="font-semibold">70% Confidence</div>
+                <p className="text-xs text-muted-foreground mt-0.5">Acceptable for exploratory research</p>
+              </div>
+              <div className="text-right">
+                <div className="text-xl font-bold text-primary">100+</div>
+                <p className="text-xs text-muted-foreground">responses</p>
+              </div>
+            </div>
+          </div>
+
+          <p className="mt-3 text-xs text-muted-foreground italic">
+            Note: These are general guidelines. Actual requirements may vary based on your survey design.
+          </p>
         </div>
 
         {introduction && (
