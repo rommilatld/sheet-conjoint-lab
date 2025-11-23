@@ -1,7 +1,6 @@
 // @ts-ignore - Supabase edge runtime types
 
-import { decryptProjectKey } from '../_shared/google-sheets.ts';
-import { saveAttributes } from '../_shared/in-memory-store.ts';
+import { getGoogleSheetsToken, decryptProjectKey } from '../_shared/google-sheets.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -15,15 +14,56 @@ Deno.serve(async (req) => {
 
   try {
     const { projectKey, attributes } = await req.json();
-    console.log('Saving attributes');
+    console.log('Saving attributes to Google Sheets');
 
     const sheetId = await decryptProjectKey(projectKey);
-    
-    // Use in-memory storage for now
-    // TODO: Implement actual Google Sheets integration when credentials are properly configured
-    saveAttributes(sheetId, attributes);
+    const token = await getGoogleSheetsToken();
 
-    console.log('Attributes saved successfully');
+    // Prepare data for Attributes sheet
+    const rows = [['Attribute', 'Level']];
+    attributes.forEach((attr: any) => {
+      if (attr.name) {
+        attr.levels.forEach((level: string) => {
+          if (level) {
+            rows.push([attr.name, level]);
+          }
+        });
+      }
+    });
+
+    // Clear existing data
+    await fetch(
+      `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/Attributes!A:B:clear`,
+      {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+      }
+    );
+
+    // Write new data
+    const writeResponse = await fetch(
+      `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/Attributes!A1:append?valueInputOption=USER_ENTERED`,
+      {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          values: rows,
+        }),
+      }
+    );
+
+    if (!writeResponse.ok) {
+      const error = await writeResponse.text();
+      throw new Error(`Failed to write to sheet: ${error}`);
+    }
+
+    console.log('Attributes saved successfully to Google Sheets');
 
     return new Response(
       JSON.stringify({ success: true }),
