@@ -58,7 +58,27 @@ async function decryptSurveyToken(token: string): Promise<{ sheetId: string; sur
   }
 }
 
-function generateRandomTasks(attributes: any[], numTasks = 3, numAlternatives = 3) {
+function calculateOptimalTaskCount(attributes: any[]): number {
+  // Calculate total number of possible combinations
+  const totalCombinations = attributes.reduce((acc, attr) => acc * attr.levels.length, 1);
+  
+  // Use a heuristic: min 8 tasks, max 15 tasks
+  // Scale based on attribute complexity
+  const attributeCount = attributes.length;
+  const avgLevels = attributes.reduce((sum, attr) => sum + attr.levels.length, 0) / attributeCount;
+  
+  // More attributes or more levels = more tasks needed
+  let optimalTasks = Math.round(attributeCount * avgLevels * 0.8);
+  
+  // Constrain between 8 and 15
+  optimalTasks = Math.max(8, Math.min(15, optimalTasks));
+  
+  console.log(`Calculated ${optimalTasks} tasks for ${attributeCount} attributes with avg ${avgLevels.toFixed(1)} levels`);
+  
+  return optimalTasks;
+}
+
+function generateRandomTasks(attributes: any[], numTasks: number, numAlternatives = 3) {
   const tasks = [];
   
   for (let t = 0; t < numTasks; t++) {
@@ -93,8 +113,33 @@ Deno.serve(async (req) => {
 
     const { sheetId, surveyId } = await decryptSurveyToken(surveyToken);
     
-    // Load attributes from Google Sheets
     const token = await getGoogleSheetsToken();
+    
+    // Load survey metadata (introduction and question) from Surveys tab
+    const surveyMetaResponse = await fetch(
+      `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/Surveys!A:F`,
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      }
+    );
+    
+    let introduction = "";
+    let question = "Which subscription plan would you prefer?";
+    
+    if (surveyMetaResponse.ok) {
+      const surveyMetaData = await surveyMetaResponse.json();
+      const surveyRows = surveyMetaData.values || [];
+      // Find the row with matching surveyId (column A)
+      const surveyRow = surveyRows.find((row: string[]) => row[0] === surveyId);
+      if (surveyRow && surveyRow.length >= 5) {
+        introduction = surveyRow[3] || ""; // Column D
+        question = surveyRow[4] || "Which subscription plan would you prefer?"; // Column E
+      }
+    }
+    
+    // Load attributes from Google Sheets
     const response = await fetch(
       `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/Attributes!A:B`,
       {
@@ -133,8 +178,11 @@ Deno.serve(async (req) => {
       throw new Error('No attributes found for this survey');
     }
     
+    // Calculate optimal number of tasks based on attributes
+    const optimalTaskCount = calculateOptimalTaskCount(attributes);
+    
     // Generate random tasks for the survey
-    const tasks = generateRandomTasks(attributes, 3, 3);
+    const tasks = generateRandomTasks(attributes, optimalTaskCount, 3);
     
     console.log(`Survey loaded with ${tasks.length} tasks`);
 
@@ -143,6 +191,8 @@ Deno.serve(async (req) => {
         surveyId,
         tasks,
         attributes,
+        introduction,
+        question,
       }),
       {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },

@@ -29,6 +29,8 @@ const SurveyResponse = () => {
   
   const [surveyData, setSurveyData] = useState<any>(null);
   const [tasks, setTasks] = useState<Task[]>([]);
+  const [introduction, setIntroduction] = useState("");
+  const [question, setQuestion] = useState("Which subscription plan would you prefer?");
   const [currentTask, setCurrentTask] = useState(0);
   const [responses, setResponses] = useState<{ [taskId: number]: number }>({});
   const [selectedOption, setSelectedOption] = useState<number | null>(null);
@@ -54,6 +56,8 @@ const SurveyResponse = () => {
 
       setSurveyData(data);
       setTasks(data.tasks);
+      setIntroduction(data.introduction || "");
+      setQuestion(data.question || "Which subscription plan would you prefer?");
     } catch (err: any) {
       setError(err.message);
     } finally {
@@ -165,10 +169,12 @@ const SurveyResponse = () => {
   return (
     <div className="container mx-auto max-w-4xl px-6 py-12">
       <div className="mb-8">
-        <h1 className="mb-2 text-3xl font-bold">Subscription Survey</h1>
-        <p className="text-muted-foreground">
-          Please select your preferred option for each task
-        </p>
+        <h1 className="mb-4 text-3xl font-bold">Research Survey</h1>
+        {introduction && (
+          <div className="mb-6 text-muted-foreground whitespace-pre-line">
+            {introduction}
+          </div>
+        )}
       </div>
 
       <Card className="shadow-card p-8">
@@ -182,7 +188,7 @@ const SurveyResponse = () => {
             </div>
           </div>
           <p className="text-muted-foreground">
-            Which subscription plan would you prefer?
+            {question}
           </p>
         </div>
 
@@ -268,6 +274,18 @@ const SurveyResponse = () => {
           </Button>
         </div>
       </Card>
+
+      <div className="mt-8 text-center text-sm text-muted-foreground">
+        Powered by{" "}
+        <a
+          href="https://experimentnation.com/consulting"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-primary hover:underline font-medium"
+        >
+          Experiment Nation Consulting
+        </a>
+      </div>
     </div>
   );
 };

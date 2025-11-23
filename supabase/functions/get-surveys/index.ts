@@ -21,7 +21,7 @@ Deno.serve(async (req) => {
     
     // Read from Surveys tab
     const response = await fetch(
-      `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/Surveys!A:D`,
+      `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/Surveys!A:F`,
       {
         headers: {
           Authorization: `Bearer ${token}`,
@@ -44,11 +44,12 @@ Deno.serve(async (req) => {
     const rows = data.values || [];
     
     // Parse surveys from rows (skip header)
+    // Columns: Survey ID, Survey URL, Created At, Introduction, Question, Preview
     const surveys = rows.slice(1).map((row: string[]) => ({
-      id: row[0],
-      name: row[1],
-      url: row[2],
-      createdAt: row[3],
+      id: row[0] || '',
+      name: row[5] || row[3]?.substring(0, 100) || 'Untitled Survey', // Use preview or first 100 chars of introduction
+      url: row[1] || '',
+      createdAt: row[2] || '',
     }));
 
     console.log(`Retrieved ${surveys.length} surveys`);

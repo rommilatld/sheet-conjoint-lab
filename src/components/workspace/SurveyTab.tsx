@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Link2, Copy, Loader2, Plus } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
@@ -22,7 +23,8 @@ interface Survey {
 export const SurveyTab = ({ projectKey }: SurveyTabProps) => {
   const [surveys, setSurveys] = useState<Survey[]>([]);
   const [loading, setLoading] = useState(false);
-  const [newSurveyName, setNewSurveyName] = useState("");
+  const [introduction, setIntroduction] = useState("");
+  const [question, setQuestion] = useState("Which subscription plan would you prefer?");
   const [generating, setGenerating] = useState(false);
   const { toast } = useToast();
 
@@ -48,10 +50,19 @@ export const SurveyTab = ({ projectKey }: SurveyTabProps) => {
   };
 
   const generateSurveyLink = async () => {
-    if (!newSurveyName.trim()) {
+    if (!introduction.trim()) {
       toast({
         title: "Error",
-        description: "Please enter a survey name",
+        description: "Please enter an introduction",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!question.trim()) {
+      toast({
+        title: "Error",
+        description: "Please enter a question",
         variant: "destructive",
       });
       return;
@@ -62,7 +73,8 @@ export const SurveyTab = ({ projectKey }: SurveyTabProps) => {
       const { data, error } = await supabase.functions.invoke('generate-survey-link', {
         body: { 
           projectKey,
-          surveyName: newSurveyName.trim(),
+          introduction: introduction.trim(),
+          question: question.trim(),
         },
       });
 
@@ -78,14 +90,15 @@ export const SurveyTab = ({ projectKey }: SurveyTabProps) => {
       
       const newSurvey: Survey = {
         id: data.surveyId,
-        name: newSurveyName.trim(),
+        name: introduction.trim().substring(0, 50) + '...',
         token: data.token,
         url: surveyUrl,
         createdAt: new Date().toISOString(),
       };
 
       setSurveys([newSurvey, ...surveys]);
-      setNewSurveyName("");
+      setIntroduction("");
+      setQuestion("Which subscription plan would you prefer?");
 
       toast({
         title: "Survey link generated!",
@@ -128,38 +141,53 @@ export const SurveyTab = ({ projectKey }: SurveyTabProps) => {
           </p>
         </div>
 
-        <div className="space-y-2">
-          <Label htmlFor="surveyName">Survey Name</Label>
-          <div className="flex gap-3">
-            <Input
-              id="surveyName"
-              placeholder="e.g., Pricing Study Wave 1"
-              value={newSurveyName}
-              onChange={(e) => setNewSurveyName(e.target.value)}
-              onKeyPress={(e) => e.key === "Enter" && generateSurveyLink()}
-              className="flex-1"
+        <div className="space-y-6">
+          <div className="space-y-2">
+            <Label htmlFor="introduction">Introduction</Label>
+            <Textarea
+              id="introduction"
+              placeholder="Write an introduction for your survey (2-3 paragraphs). This will be displayed at the top of the survey to provide context to respondents."
+              value={introduction}
+              onChange={(e) => setIntroduction(e.target.value)}
+              className="min-h-[150px]"
             />
-            <Button
-              onClick={generateSurveyLink}
-              disabled={generating || !newSurveyName.trim()}
-              className="gradient-primary"
-            >
-              {generating ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Generating...
-                </>
-              ) : (
-                <>
-                  <Plus className="mr-2 h-4 w-4" />
-                  Generate Link
-                </>
-              )}
-            </Button>
+            <p className="text-xs text-muted-foreground">
+              Provide context and instructions for survey respondents
+            </p>
           </div>
-          <p className="text-xs text-muted-foreground">
-            Give this survey a descriptive name to track responses
-          </p>
+
+          <div className="space-y-2">
+            <Label htmlFor="question">Question</Label>
+            <Input
+              id="question"
+              placeholder="Which subscription plan would you prefer?"
+              value={question}
+              onChange={(e) => setQuestion(e.target.value)}
+              onKeyPress={(e) => e.key === "Enter" && generateSurveyLink()}
+            />
+            <p className="text-xs text-muted-foreground">
+              This question will appear for each choice task
+            </p>
+          </div>
+
+          <Button
+            onClick={generateSurveyLink}
+            disabled={generating || !introduction.trim() || !question.trim()}
+            className="w-full gradient-primary"
+            size="lg"
+          >
+            {generating ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Generating...
+              </>
+            ) : (
+              <>
+                <Plus className="mr-2 h-4 w-4" />
+                Generate Link
+              </>
+            )}
+          </Button>
         </div>
       </Card>
 
