@@ -17,7 +17,7 @@ const StartProject = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
 
-  const serviceAccountEmail = "your-service-account@project.iam.gserviceaccount.com";
+  const serviceAccountEmail = "conjoint-sheets-access@lovable-conjoint.iam.gserviceaccount.com";
 
   const handleCreateProject = async () => {
     setError("");
@@ -32,7 +32,7 @@ const StartProject = () => {
       const sheetId = match[1];
 
       // Call edge function to initialize project
-      const { data, error: functionError } = await supabase.functions.invoke('init-project', {
+      const { data, error: functionError } = await supabase.functions.invoke("init-project", {
         body: { sheetId },
       });
 
@@ -45,7 +45,7 @@ const StartProject = () => {
       }
 
       setProjectKey(data.projectKey);
-      
+
       toast({
         title: "Project created!",
         description: "Save your project key to access this project later.",
@@ -92,20 +92,14 @@ const StartProject = () => {
               <CheckCircle className="h-8 w-8 text-accent" />
             </div>
             <h1 className="mb-2 text-3xl font-bold">Project Created!</h1>
-            <p className="text-muted-foreground">
-              Save your project key to access this project anytime
-            </p>
+            <p className="text-muted-foreground">Save your project key to access this project anytime</p>
           </div>
 
           <div className="space-y-4">
             <div>
               <Label className="text-base font-semibold">Your Project Key</Label>
               <div className="mt-2 flex gap-2">
-                <Input
-                  value={projectKey}
-                  readOnly
-                  className="font-mono text-sm"
-                />
+                <Input value={projectKey} readOnly className="font-mono text-sm" />
                 <Button variant="outline" size="icon" onClick={copyToClipboard}>
                   <Copy className="h-4 w-4" />
                 </Button>
@@ -117,8 +111,8 @@ const StartProject = () => {
 
             <Alert className="bg-accent/10 border-accent">
               <AlertDescription>
-                <strong>Important:</strong> Store this key safely. You'll need it to access your project.
-                Without it, you won't be able to open your project again.
+                <strong>Important:</strong> Store this key safely. You'll need it to access your project. Without it,
+                you won't be able to open your project again.
               </AlertDescription>
             </Alert>
 
@@ -135,9 +129,7 @@ const StartProject = () => {
     <div className="container mx-auto max-w-2xl px-6 py-20">
       <div className="mb-8 text-center">
         <h1 className="mb-3 text-4xl font-bold">Start New Project</h1>
-        <p className="text-lg text-muted-foreground">
-          Connect your Google Sheet to begin
-        </p>
+        <p className="text-lg text-muted-foreground">Connect your Google Sheet to begin</p>
       </div>
 
       <Card className="shadow-card p-8">
@@ -147,8 +139,13 @@ const StartProject = () => {
             <h2 className="mb-3 text-lg font-semibold">Setup Instructions</h2>
             <ol className="space-y-2 text-sm text-muted-foreground">
               <li>1. Create a new Google Sheet or use an existing one</li>
-              <li>2. Share the sheet with: <code className="rounded bg-muted px-1 py-0.5 text-xs">{serviceAccountEmail}</code></li>
-              <li>3. Give it <strong>Editor</strong> permissions</li>
+              <li>
+                2. Share the sheet with:{" "}
+                <code className="rounded bg-muted px-1 py-0.5 text-xs">{serviceAccountEmail}</code>
+              </li>
+              <li>
+                3. Give it <strong>Editor</strong> permissions
+              </li>
               <li>4. Paste the sheet URL below</li>
             </ol>
           </div>
@@ -165,9 +162,7 @@ const StartProject = () => {
                 onChange={(e) => setSheetUrl(e.target.value)}
                 className="mt-2"
               />
-              <p className="mt-1.5 text-xs text-muted-foreground">
-                Paste the full URL from your browser's address bar
-              </p>
+              <p className="mt-1.5 text-xs text-muted-foreground">Paste the full URL from your browser's address bar</p>
             </div>
 
             {error && (
