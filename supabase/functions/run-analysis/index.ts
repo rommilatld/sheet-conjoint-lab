@@ -27,7 +27,8 @@ function generatePlans(
   attributes: Attribute[], 
   utilities: { [key: string]: number },
   responses: Response[],
-  pricingStrategy: 'submitted' | 'suggested'
+  pricingStrategy: 'submitted' | 'suggested',
+  goal: 'revenue' | 'purchases'
 ) {
   const plans = [];
   const planNames = ['Good', 'Better', 'Best', 'Premium', 'Enterprise', 'Starter', 'Professional', 'Ultimate', 'Advanced', 'Elite'];
@@ -94,25 +95,29 @@ function generatePlans(
       }
     });
     
-    // Determine pricing based on strategy and available data
+    // Determine pricing based on strategy, goal, and available data
     let willingnessToPay: number;
     let suggestedPrice: number;
     
     // Determine minimum price floor from available price levels
     const minPrice = availablePriceLevels.length > 0 ? availablePriceLevels[0] : 1;
 
+    // Pricing multipliers based on goal
+    const priceMultiplier = goal === 'revenue' ? 0.95 : 0.75; // Revenue: price closer to WTP; Purchases: more aggressive discount
+    const utilityInfluence = goal === 'revenue' ? 7 : 3; // Revenue: utilities have more impact on price
+
     if (pricingStrategy === 'submitted' && priceAttr && availablePriceLevels.length > 0) {
       // Use submitted pricing levels - assign based on tier
       if (i < availablePriceLevels.length) {
         // We have a price level for this tier
         suggestedPrice = Math.max(minPrice, availablePriceLevels[i]);
-        willingnessToPay = Math.max(minPrice, suggestedPrice + (totalUtility * 5));
+        willingnessToPay = Math.max(minPrice, suggestedPrice + (totalUtility * utilityInfluence));
       } else {
         // Not enough price levels - fall back to utility-based
         const basePrice = availablePriceLevels[availablePriceLevels.length - 1] || 10;
-        const utilityMultiplier = 20;
+        const utilityMultiplier = goal === 'revenue' ? 25 : 15;
         willingnessToPay = Math.max(minPrice, basePrice + totalUtility * utilityMultiplier);
-        suggestedPrice = Math.max(minPrice, Math.round(willingnessToPay * 0.85));
+        suggestedPrice = Math.max(minPrice, Math.round(willingnessToPay * priceMultiplier));
       }
     } else if (priceAttr && features[priceAttr.name]) {
       // Suggested pricing with price attribute context
@@ -120,15 +125,15 @@ function generatePlans(
       const priceMatch = priceLevel.match(/[\d.]+/);
       const basePrice = priceMatch ? parseFloat(priceMatch[0]) : 50;
       
-      // Calculate willingness to pay and suggest optimized pricing
-      willingnessToPay = Math.max(minPrice, basePrice + (totalUtility * 5));
-      suggestedPrice = Math.max(minPrice, Math.round(willingnessToPay * 0.85));
+      // Calculate willingness to pay and suggest optimized pricing based on goal
+      willingnessToPay = Math.max(minPrice, basePrice + (totalUtility * utilityInfluence));
+      suggestedPrice = Math.max(minPrice, Math.round(willingnessToPay * priceMultiplier));
     } else {
       // No price attribute - use utility-based estimation
       const basePrice = 10;
-      const utilityMultiplier = 20;
+      const utilityMultiplier = goal === 'revenue' ? 25 : 15;
       willingnessToPay = Math.max(minPrice, basePrice + totalUtility * utilityMultiplier);
-      suggestedPrice = Math.max(minPrice, Math.round(willingnessToPay * 0.85));
+      suggestedPrice = Math.max(minPrice, Math.round(willingnessToPay * priceMultiplier));
     }
     
     // Generate rationale based on actual feature combinations
@@ -171,7 +176,8 @@ function runConjointAnalysis(
   responses: Response[], 
   attributes: Attribute[], 
   numPlans: number, 
-  pricingStrategy: 'submitted' | 'suggested'
+  pricingStrategy: 'submitted' | 'suggested',
+  goal: 'revenue' | 'purchases'
 ) {
   // Count total responses for each attribute level
   const levelCounts: { [key: string]: number } = {};
@@ -219,7 +225,7 @@ function runConjointAnalysis(
   });
   
   // Generate plans
-  const { plans, priceMismatchWarning } = generatePlans(numPlans, attributes, utilities, responses, pricingStrategy);
+  const { plans, priceMismatchWarning } = generatePlans(numPlans, attributes, utilities, responses, pricingStrategy, goal);
   
   return {
     utilities,
@@ -237,8 +243,8 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { projectKey, numPlans = 3, pricingStrategy = 'suggested' } = await req.json();
-    console.log('Running conjoint analysis with', numPlans, 'plans, pricing strategy:', pricingStrategy);
+    const { projectKey, numPlans = 3, pricingStrategy = 'suggested', goal = 'revenue' } = await req.json();
+    console.log('Running conjoint analysis with', numPlans, 'plans, pricing strategy:', pricingStrategy, 'goal:', goal);
 
     const sheetId = await decryptProjectKey(projectKey);
     const token = await getGoogleSheetsToken();
@@ -326,7 +332,7 @@ Deno.serve(async (req) => {
     console.log(`Analyzing ${responses.length} response rows from ${totalUniqueResponses} unique respondents`);
     
     // Run analysis
-    const results = runConjointAnalysis(responses, attributes, numPlans, pricingStrategy);
+    const results = runConjointAnalysis(responses, attributes, numPlans, pricingStrategy, goal);
     
     // Override totalResponses with unique count
     results.totalResponses = totalUniqueResponses;
