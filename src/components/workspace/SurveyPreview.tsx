@@ -39,7 +39,7 @@ export const SurveyPreview = ({ attributes, projectKey }: SurveyPreviewProps) =>
   const loadConfig = async () => {
     setLoading(true);
     try {
-      const { data, error } = await supabase.functions.invoke('get-survey-config', {
+      const { data, error } = await supabase.functions.invoke("get-survey-config", {
         body: { projectKey },
       });
 
@@ -79,7 +79,7 @@ export const SurveyPreview = ({ attributes, projectKey }: SurveyPreviewProps) =>
 
     setSaving(true);
     try {
-      const { error } = await supabase.functions.invoke('save-survey-config', {
+      const { error } = await supabase.functions.invoke("save-survey-config", {
         body: {
           projectKey,
           introduction: introduction.trim(),
@@ -162,9 +162,7 @@ export const SurveyPreview = ({ attributes, projectKey }: SurveyPreviewProps) =>
                 onChange={(e) => setIntroduction(e.target.value)}
                 className="min-h-[150px]"
               />
-              <p className="text-xs text-muted-foreground">
-                Provide context and instructions for survey respondents
-              </p>
+              <p className="text-xs text-muted-foreground">Provide context and instructions for survey respondents</p>
             </div>
 
             <div className="space-y-2">
@@ -175,9 +173,7 @@ export const SurveyPreview = ({ attributes, projectKey }: SurveyPreviewProps) =>
                 value={question}
                 onChange={(e) => setQuestion(e.target.value)}
               />
-              <p className="text-xs text-muted-foreground">
-                This question will appear for each choice task
-              </p>
+              <p className="text-xs text-muted-foreground">This question will appear for each choice task</p>
             </div>
 
             <Button
@@ -194,7 +190,7 @@ export const SurveyPreview = ({ attributes, projectKey }: SurveyPreviewProps) =>
               ) : (
                 <>
                   <Save className="mr-2 h-4 w-4" />
-                  Save Configuration
+                  Save
                 </>
               )}
             </Button>
@@ -205,16 +201,12 @@ export const SurveyPreview = ({ attributes, projectKey }: SurveyPreviewProps) =>
       <Card className="shadow-card p-8">
         <div className="mb-6">
           <h3 className="text-xl font-semibold mb-2">Survey Preview</h3>
-          <p className="text-muted-foreground text-sm">
-            This is how your survey will appear to respondents
-          </p>
+          <p className="text-muted-foreground text-sm">This is how your survey will appear to respondents</p>
         </div>
 
         {introduction && (
           <div className="mb-6 p-4 rounded-lg bg-muted/50">
-            <p className="text-base text-muted-foreground whitespace-pre-line leading-relaxed">
-              {introduction}
-            </p>
+            <p className="text-base text-muted-foreground whitespace-pre-line leading-relaxed">{introduction}</p>
           </div>
         )}
 
@@ -223,89 +215,65 @@ export const SurveyPreview = ({ attributes, projectKey }: SurveyPreviewProps) =>
             <h3 className="text-xl font-semibold">
               Task {currentTask + 1} of {tasks.length}
             </h3>
-            <div className="text-sm text-muted-foreground">
-              Preview Mode
-            </div>
+            <div className="text-sm text-muted-foreground">Preview Mode</div>
           </div>
           <p className="text-base font-medium text-foreground mb-4">
             {question || "Which subscription plan would you prefer?"}
           </p>
         </div>
 
-      <RadioGroup
-        value={selectedOption?.toString()}
-        onValueChange={(val) => setSelectedOption(parseInt(val))}
-        className="space-y-4"
-      >
-        {currentAlternatives.map((alternative, idx) => (
-          <div
-            key={idx}
-            className={`rounded-lg border-2 p-6 transition-all ${
-              selectedOption === idx
-                ? "border-primary bg-primary/5"
-                : "border-border hover:border-primary/50"
-            }`}
-          >
-            <div className="flex items-start gap-4">
-              <RadioGroupItem
-                value={idx.toString()}
-                id={`option-${idx}`}
-                className="mt-1"
-              />
-              <Label
-                htmlFor={`option-${idx}`}
-                className="flex-1 cursor-pointer"
-              >
-                <div className="font-semibold mb-3 text-lg">
-                  Option {String.fromCharCode(65 + idx)}
-                </div>
-                <div className="space-y-2">
-                  {attributes.map((attr) => (
-                    <div key={attr.name} className="flex items-center gap-2">
-                      <span className="font-medium text-sm">{attr.name}:</span>
-                      <span className="text-muted-foreground">
-                        {alternative[attr.name]}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              </Label>
-            </div>
-          </div>
-        ))}
-      </RadioGroup>
-
-      <div className="mt-8 flex items-center justify-between">
-        <Button
-          variant="outline"
-          onClick={handlePrevious}
-          disabled={currentTask === 0}
+        <RadioGroup
+          value={selectedOption?.toString()}
+          onValueChange={(val) => setSelectedOption(parseInt(val))}
+          className="space-y-4"
         >
-          <ChevronLeft className="mr-2 h-4 w-4" />
-          Previous
-        </Button>
-
-        <div className="flex gap-2">
-          {tasks.map((_, idx) => (
+          {currentAlternatives.map((alternative, idx) => (
             <div
               key={idx}
-              className={`h-2 w-2 rounded-full ${
-                idx === currentTask ? "bg-primary" : "bg-muted"
+              className={`rounded-lg border-2 p-6 transition-all ${
+                selectedOption === idx ? "border-primary bg-primary/5" : "border-border hover:border-primary/50"
               }`}
-            />
+            >
+              <div className="flex items-start gap-4">
+                <RadioGroupItem value={idx.toString()} id={`option-${idx}`} className="mt-1" />
+                <Label htmlFor={`option-${idx}`} className="flex-1 cursor-pointer">
+                  <div className="font-semibold mb-3 text-lg">Option {String.fromCharCode(65 + idx)}</div>
+                  <div className="space-y-2">
+                    {attributes.map((attr) => (
+                      <div key={attr.name} className="flex items-center gap-2">
+                        <span className="font-medium text-sm">{attr.name}:</span>
+                        <span className="text-muted-foreground">{alternative[attr.name]}</span>
+                      </div>
+                    ))}
+                  </div>
+                </Label>
+              </div>
+            </div>
           ))}
-        </div>
+        </RadioGroup>
 
-        <Button
-          onClick={handleNext}
-          disabled={currentTask === tasks.length - 1 || selectedOption === null}
-          className="gradient-primary"
-        >
-          Next
-          <ChevronRight className="ml-2 h-4 w-4" />
-        </Button>
-      </div>
-    </Card>
+        <div className="mt-8 flex items-center justify-between">
+          <Button variant="outline" onClick={handlePrevious} disabled={currentTask === 0}>
+            <ChevronLeft className="mr-2 h-4 w-4" />
+            Previous
+          </Button>
+
+          <div className="flex gap-2">
+            {tasks.map((_, idx) => (
+              <div key={idx} className={`h-2 w-2 rounded-full ${idx === currentTask ? "bg-primary" : "bg-muted"}`} />
+            ))}
+          </div>
+
+          <Button
+            onClick={handleNext}
+            disabled={currentTask === tasks.length - 1 || selectedOption === null}
+            className="gradient-primary"
+          >
+            Next
+            <ChevronRight className="ml-2 h-4 w-4" />
+          </Button>
+        </div>
+      </Card>
     </div>
   );
 };
