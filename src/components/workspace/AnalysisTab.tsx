@@ -37,6 +37,7 @@ export const AnalysisTab = ({ projectKey }: AnalysisTabProps) => {
   const [numPlans, setNumPlans] = useState<number>(3);
   const [pricingStrategy, setPricingStrategy] = useState<'submitted' | 'suggested'>('suggested');
   const [goal, setGoal] = useState<'revenue' | 'purchases'>('revenue');
+  const [noResponses, setNoResponses] = useState(false);
   const { toast } = useToast();
 
   // Fetch attributes to set default number of plans based on pricing levels
@@ -239,6 +240,7 @@ export const AnalysisTab = ({ projectKey }: AnalysisTabProps) => {
 
   const runAnalysis = async () => {
     setLoading(true);
+    setNoResponses(false);
     try {
       const { data, error } = await supabase.functions.invoke('run-analysis', {
         body: { 
@@ -273,11 +275,16 @@ export const AnalysisTab = ({ projectKey }: AnalysisTabProps) => {
         });
       }
     } catch (err: any) {
-      toast({
-        title: "Error",
-        description: err.message,
-        variant: "destructive",
-      });
+      // Check if error is about no responses
+      if (err.message && err.message.toLowerCase().includes('no responses found')) {
+        setNoResponses(true);
+      } else {
+        toast({
+          title: "Error",
+          description: err.message,
+          variant: "destructive",
+        });
+      }
     } finally {
       setLoading(false);
     }
@@ -418,7 +425,20 @@ export const AnalysisTab = ({ projectKey }: AnalysisTabProps) => {
           )}
         </Button>
 
-        {!results && !loading && (
+        {noResponses && (
+          <div className="mt-8 rounded-lg border-2 border-dashed border-border p-8 text-center">
+            <BarChart3 className="mx-auto h-16 w-16 text-muted-foreground mb-4" />
+            <h3 className="text-xl font-semibold mb-2">No Responses Yet</h3>
+            <p className="text-muted-foreground mb-4">
+              You need to collect survey responses before running analysis.
+            </p>
+            <p className="text-sm text-muted-foreground">
+              Go to the <span className="font-medium">Generate Links</span> tab to create and share your survey link.
+            </p>
+          </div>
+        )}
+
+        {!results && !loading && !noResponses && (
           <div className="mt-8 rounded-lg bg-muted/50 p-6">
             <h3 className="mb-3 text-lg font-semibold">What This Does</h3>
             <ul className="space-y-2 text-sm text-muted-foreground">
