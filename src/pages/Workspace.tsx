@@ -7,6 +7,7 @@ import { ProjectInfo } from "@/components/workspace/ProjectInfo";
 import { AttributesTab } from "@/components/workspace/AttributesTab";
 import { DesignTab } from "@/components/workspace/DesignTab";
 import { SurveyTab } from "@/components/workspace/SurveyTab";
+import { supabase } from "@/integrations/supabase/client";
 
 const Workspace = () => {
   const { projectKey } = useParams();
@@ -17,17 +18,18 @@ const Workspace = () => {
   useEffect(() => {
     const loadProject = async () => {
       try {
-        const response = await fetch("/api/get-sheet-info", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ projectKey }),
+        const { data, error: functionError } = await supabase.functions.invoke('get-sheet-info', {
+          body: { projectKey },
         });
 
-        if (!response.ok) {
+        if (functionError) {
           throw new Error("Failed to load project");
         }
 
-        const data = await response.json();
+        if (!data || !data.sheetUrl) {
+          throw new Error("Invalid project data");
+        }
+
         setSheetUrl(data.sheetUrl);
       } catch (err: any) {
         setError(err.message);
