@@ -39,6 +39,7 @@ export const AnalysisTab = ({ projectKey }: AnalysisTabProps) => {
   const [goal, setGoal] = useState<'revenue' | 'purchases'>('revenue');
   const [noResponses, setNoResponses] = useState(false);
   const [priceWarning, setPriceWarning] = useState<string>('');
+  const [successMessage, setSuccessMessage] = useState<string>('');
   const { toast } = useToast();
 
   // Fetch attributes to set default number of plans based on pricing levels
@@ -271,6 +272,7 @@ export const AnalysisTab = ({ projectKey }: AnalysisTabProps) => {
     setLoading(true);
     setNoResponses(false);
     setPriceWarning('');
+    setSuccessMessage('');
     try {
       const { data, error } = await supabase.functions.invoke('run-analysis', {
         body: { 
@@ -296,10 +298,8 @@ export const AnalysisTab = ({ projectKey }: AnalysisTabProps) => {
         setPriceWarning(data.results.priceMismatchWarning);
       }
       
-      toast({
-        title: "Analysis Complete!",
-        description: `Results saved to ${data.results.analysisTabName} tab in your Google Sheet`,
-      });
+      // Set success message
+      setSuccessMessage(`Results saved to ${data.results.analysisTabName} tab in your Google Sheet`);
     } catch (err: any) {
       // Check if error is about no responses
       if (err.message && err.message.toLowerCase().includes('no responses found')) {
@@ -450,6 +450,14 @@ export const AnalysisTab = ({ projectKey }: AnalysisTabProps) => {
             </>
           )}
         </Button>
+
+        {successMessage && (
+          <div className="mt-4 p-4 bg-primary/10 border border-primary/30 rounded-lg">
+            <p className="text-sm text-primary font-medium">
+              ✓ Analysis Complete! {successMessage}
+            </p>
+          </div>
+        )}
 
         {priceWarning && (
           <div className="mt-4 p-4 bg-destructive/10 border border-destructive/30 rounded-lg">
