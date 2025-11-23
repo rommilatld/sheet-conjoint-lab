@@ -3,6 +3,8 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Loader2, Plus, Trash2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
@@ -14,6 +16,8 @@ interface AttributesTabProps {
 interface Attribute {
   name: string;
   levels: string[];
+  isPriceAttribute?: boolean;
+  currency?: string;
 }
 
 export const AttributesTab = ({ projectKey }: AttributesTabProps) => {
@@ -72,7 +76,26 @@ export const AttributesTab = ({ projectKey }: AttributesTabProps) => {
   };
 
   const addAttribute = () => {
-    setAttributes([...attributes, { name: "", levels: ["", ""] }]);
+    setAttributes([...attributes, { name: "", levels: ["", ""], isPriceAttribute: false, currency: "USD" }]);
+  };
+
+  const togglePriceAttribute = (index: number, checked: boolean) => {
+    const updated = [...attributes];
+    // If marking as price attribute, unmark all others
+    if (checked) {
+      updated.forEach((attr, i) => {
+        attr.isPriceAttribute = i === index;
+      });
+    } else {
+      updated[index].isPriceAttribute = false;
+    }
+    setAttributes(updated);
+  };
+
+  const updateCurrency = (index: number, currency: string) => {
+    const updated = [...attributes];
+    updated[index].currency = currency;
+    setAttributes(updated);
   };
 
   const removeAttribute = (index: number) => {
@@ -153,6 +176,40 @@ export const AttributesTab = ({ projectKey }: AttributesTabProps) => {
                   <p className="mt-1 text-xs text-muted-foreground">
                     Enter a descriptive name for this feature
                   </p>
+                </div>
+
+                <div className="flex items-center gap-4 p-3 rounded-lg bg-muted/30">
+                  <div className="flex items-center space-x-2">
+                    <Checkbox
+                      id={`price-${attrIndex}`}
+                      checked={attr.isPriceAttribute || false}
+                      onCheckedChange={(checked) => togglePriceAttribute(attrIndex, checked as boolean)}
+                    />
+                    <Label htmlFor={`price-${attrIndex}`} className="text-sm font-medium cursor-pointer">
+                      Price Attribute
+                    </Label>
+                  </div>
+                  {attr.isPriceAttribute && (
+                    <div className="flex items-center gap-2">
+                      <Label htmlFor={`currency-${attrIndex}`} className="text-sm">Currency:</Label>
+                      <Select
+                        value={attr.currency || "USD"}
+                        onValueChange={(value) => updateCurrency(attrIndex, value)}
+                      >
+                        <SelectTrigger id={`currency-${attrIndex}`} className="w-24">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="USD">USD</SelectItem>
+                          <SelectItem value="EUR">EUR</SelectItem>
+                          <SelectItem value="GBP">GBP</SelectItem>
+                          <SelectItem value="JPY">JPY</SelectItem>
+                          <SelectItem value="CAD">CAD</SelectItem>
+                          <SelectItem value="AUD">AUD</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  )}
                 </div>
 
                 <div className="space-y-2">

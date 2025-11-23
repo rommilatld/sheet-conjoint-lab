@@ -85,12 +85,15 @@ Deno.serve(async (req) => {
       await ensureTabExists(sheetId, token, 'Attributes');
 
       // Prepare data for Attributes sheet
-      const rows = [['Attribute', 'Level']];
+      const rows = [['Attribute', 'Level', 'IsPriceAttribute', 'Currency']];
       attributes.forEach((attr: any) => {
         if (attr.name) {
-          attr.levels.forEach((level: string) => {
+          attr.levels.forEach((level: string, idx: number) => {
             if (level) {
-              rows.push([attr.name, level]);
+              // Only include isPriceAttribute and currency on the first row for each attribute
+              const isPriceAttr = idx === 0 ? (attr.isPriceAttribute ? 'TRUE' : 'FALSE') : '';
+              const currency = idx === 0 ? (attr.currency || '') : '';
+              rows.push([attr.name, level, isPriceAttr, currency]);
             }
           });
         }
@@ -98,7 +101,7 @@ Deno.serve(async (req) => {
 
       // Clear existing data
       await fetch(
-        `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/Attributes!A:B:clear`,
+        `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/Attributes!A:D:clear`,
         {
           method: 'POST',
           headers: {

@@ -86,8 +86,8 @@ const Workspace = () => {
           <TabsList className="grid w-full grid-cols-5 lg:w-auto lg:inline-grid">
             <TabsTrigger value="info">Project Info</TabsTrigger>
             <TabsTrigger value="attributes">Attributes</TabsTrigger>
-            <TabsTrigger value="design">Design</TabsTrigger>
-            <TabsTrigger value="survey">Survey</TabsTrigger>
+            <TabsTrigger value="design">Preview</TabsTrigger>
+            <TabsTrigger value="survey">Generate Links</TabsTrigger>
             <TabsTrigger value="analysis">Analysis</TabsTrigger>
           </TabsList>
           <Button
