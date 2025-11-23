@@ -10,6 +10,7 @@ import { DesignTab } from "@/components/workspace/DesignTab";
 import { SurveyTab } from "@/components/workspace/SurveyTab";
 import { AnalysisTab } from "@/components/workspace/AnalysisTab";
 import { supabase } from "@/integrations/supabase/client";
+import enLogo from "@/assets/en-logo.jpg";
 
 const Workspace = () => {
   const { projectKey } = useParams();
@@ -63,11 +64,22 @@ const Workspace = () => {
   }
 
   return (
-    <div className="container mx-auto px-6 py-8">
-      <div className="mb-8">
-        <h1 className="mb-2 text-3xl font-bold">Project Workspace</h1>
-        <p className="text-muted-foreground">Manage your conjoint study</p>
-      </div>
+    <div className="min-h-screen">
+      {/* Header */}
+      <header className="border-b bg-card">
+        <div className="container mx-auto px-6 py-4">
+          <div className="flex items-center gap-3">
+            <img src={enLogo} alt="Experiment Nation" className="h-10 w-10" />
+            <h1 className="text-2xl font-bold">Plan Builder by Experiment Nation</h1>
+          </div>
+        </div>
+      </header>
+
+      <div className="container mx-auto px-6 py-8">
+        <div className="mb-8">
+          <h1 className="mb-2 text-3xl font-bold">Project Workspace</h1>
+          <p className="text-muted-foreground">Manage your conjoint study</p>
+        </div>
 
       <Tabs defaultValue="info" className="space-y-6">
         <div className="flex items-center justify-between gap-4">
@@ -107,6 +119,7 @@ const Workspace = () => {
           <AnalysisTab projectKey={projectKey!} />
         </TabsContent>
       </Tabs>
+      </div>
     </div>
   );
 };
