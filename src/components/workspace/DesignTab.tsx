@@ -99,7 +99,7 @@ export const DesignTab = ({ projectKey }: DesignTabProps) => {
         </div>
       </Card>
 
-      {showPreview && <SurveyPreview attributes={attributes} />}
+      {showPreview && <SurveyPreview attributes={attributes} projectKey={projectKey} />}
     </div>
   );
 };

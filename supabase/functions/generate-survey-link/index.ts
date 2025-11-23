@@ -54,19 +54,49 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { projectKey, introduction, question } = await req.json();
+    const { projectKey } = await req.json();
     console.log('Generating survey link');
 
     const sheetId = await decryptProjectKey(projectKey);
+    const gsToken = await getGoogleSheetsToken();
+    
+    // Load introduction and question from Config tab
+    const configResponse = await fetch(
+      `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/Config!A1:B3`,
+      {
+        headers: {
+          Authorization: `Bearer ${gsToken}`,
+        },
+      }
+    );
+
+    let introduction = "";
+    let question = "Which subscription plan would you prefer?";
+
+    if (configResponse.ok) {
+      const configData = await configResponse.json();
+      const configRows = configData.values || [];
+      
+      if (configRows.length > 1) {
+        if (configRows[1] && configRows[1][1]) {
+          introduction = configRows[1][1];
+        }
+        if (configRows[2] && configRows[2][1]) {
+          question = configRows[2][1];
+        }
+      }
+    } else {
+      console.warn('Config tab not found, using defaults');
+    }
+    
+    console.log(`Using introduction (${introduction.length} chars) and question: ${question}`);
     
     // Generate unique survey ID
     const surveyId = `survey_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
     
     // Encrypt sheet ID + survey ID into token
     const token = await encryptSurveyToken(sheetId, surveyId);
-    
     // Save to Google Sheets Surveys tab
-    const gsToken = await getGoogleSheetsToken();
     const timestamp = new Date().toISOString();
     const surveyUrl = `${req.headers.get('origin') || 'https://your-app.com'}/s/${token}`;
     
@@ -146,6 +176,8 @@ Deno.serve(async (req) => {
       JSON.stringify({ 
         token,
         surveyId,
+        introduction,
+        question,
       }),
       {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
