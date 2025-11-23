@@ -164,11 +164,55 @@ function generatePlans(
       suggestedPrice,
       willingnessToPay,
       currency,
-      rationale
+      rationale,
+      totalUtility, // Store for sorting
     });
   }
   
-  return { plans, priceMismatchWarning };
+  // Sort plans based on goal
+  if (goal === 'revenue') {
+    // For revenue maximization: sort by expected revenue (price * utility as proxy for conversion)
+    // Higher utility + higher price = better for revenue
+    plans.sort((a, b) => {
+      const revenueA = a.suggestedPrice * Math.exp(a.totalUtility / 10);
+      const revenueB = b.suggestedPrice * Math.exp(b.totalUtility / 10);
+      return revenueA - revenueB;
+    });
+  } else {
+    // For purchase maximization: sort by expected adoption (utility - price sensitivity)
+    // Higher utility, lower price = better for purchases
+    plans.sort((a, b) => {
+      const adoptionScoreA = a.totalUtility - (a.suggestedPrice * 0.1);
+      const adoptionScoreB = b.totalUtility - (b.suggestedPrice * 0.1);
+      return adoptionScoreA - adoptionScoreB;
+    });
+  }
+  
+  // Assign names based on sorted order
+  plans.forEach((plan, idx) => {
+    plan.name = planNames[idx] || `Plan ${idx + 1}`;
+  });
+  
+  // Check if "Best" is most expensive - if not, add explanation
+  if (plans.length >= 3) {
+    const bestPlan = plans[plans.length - 1];
+    const mostExpensivePlan = [...plans].sort((a, b) => b.suggestedPrice - a.suggestedPrice)[0];
+    
+    if (bestPlan.name !== mostExpensivePlan.name) {
+      if (goal === 'revenue') {
+        priceMismatchWarning += (priceMismatchWarning ? '\n\n' : '') + 
+          `Note: "${bestPlan.name}" ($${bestPlan.suggestedPrice}) is recommended as the best plan for revenue, even though "${mostExpensivePlan.name}" ($${mostExpensivePlan.suggestedPrice}) is more expensive. This is because "${bestPlan.name}" has a better combination of price and features that maximizes expected revenue through higher conversion rates.`;
+      } else {
+        priceMismatchWarning += (priceMismatchWarning ? '\n\n' : '') + 
+          `Note: "${bestPlan.name}" ($${bestPlan.suggestedPrice}) is recommended as the best plan for maximizing purchases. While "${mostExpensivePlan.name}" ($${mostExpensivePlan.suggestedPrice}) is more expensive, "${bestPlan.name}" offers the optimal balance of features and affordability to maximize customer adoption.`;
+      }
+    }
+  }
+  
+  // Return plans without totalUtility
+  const finalPlans = plans.map(({ totalUtility, ...plan }) => plan);
+  
+  return { plans: finalPlans, priceMismatchWarning };
 }
 
 // Simple MNL conjoint analysis using iterative weighted least squares
