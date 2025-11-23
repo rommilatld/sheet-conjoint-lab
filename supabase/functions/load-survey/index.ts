@@ -84,6 +84,7 @@ function generateRandomTasks(attributes: any[], numTasks: number, numAlternative
   for (let t = 0; t < numTasks; t++) {
     const alternatives = [];
     
+    // Generate the regular alternatives
     for (let a = 0; a < numAlternatives; a++) {
       const alternative: any = {};
       attributes.forEach(attr => {
@@ -92,6 +93,13 @@ function generateRandomTasks(attributes: any[], numTasks: number, numAlternative
       });
       alternatives.push(alternative);
     }
+    
+    // Add "None" option as the last alternative
+    const noneAlternative: any = {};
+    attributes.forEach(attr => {
+      noneAlternative[attr.name] = 'None of these';
+    });
+    alternatives.push(noneAlternative);
     
     tasks.push({
       taskId: t + 1,

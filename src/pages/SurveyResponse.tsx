@@ -241,20 +241,23 @@ const SurveyResponse = () => {
               </div>
             </div>
           ) : (
-            <RadioGroup
-              key={`task-${currentTask}`}
-              value={selectedOption?.toString()}
-              onValueChange={(val) => setSelectedOption(parseInt(val))}
-              className="space-y-4 animate-fade-in"
-            >
-              {currentTaskData.alternatives.map((alternative, idx) => (
+          <RadioGroup
+            key={`task-${currentTask}`}
+            value={selectedOption?.toString()}
+            onValueChange={(val) => setSelectedOption(parseInt(val))}
+            className="space-y-4 animate-fade-in"
+          >
+            {currentTaskData.alternatives.map((alternative, idx) => {
+              const isNoneOption = Object.values(alternative).every(val => val === 'None of these');
+              
+              return (
                 <div
                   key={idx}
                   className={`rounded-lg border-2 p-6 transition-all cursor-pointer animate-scale-in ${
                     selectedOption === idx
                       ? "border-primary bg-primary/5"
                       : "border-border hover:border-primary/50"
-                  }`}
+                  } ${isNoneOption ? 'bg-muted/30' : ''}`}
                   style={{ animationDelay: `${idx * 50}ms` }}
                   onClick={() => setSelectedOption(idx)}
                 >
@@ -268,24 +271,33 @@ const SurveyResponse = () => {
                       htmlFor={`option-${idx}`}
                       className="flex-1 cursor-pointer"
                     >
-                      <div className="font-semibold mb-3 text-lg">
-                        Option {String.fromCharCode(65 + idx)}
-                      </div>
-                      <div className="space-y-2">
-                        {attributeNames.map((attr) => (
-                          <div key={attr} className="flex items-center gap-2">
-                            <span className="font-medium text-sm">{attr}:</span>
-                            <span className="text-muted-foreground">
-                              {alternative[attr]}
-                            </span>
+                      {isNoneOption ? (
+                        <div className="font-semibold text-lg text-muted-foreground">
+                          None of these options
+                        </div>
+                      ) : (
+                        <>
+                          <div className="font-semibold mb-3 text-lg">
+                            Option {String.fromCharCode(65 + idx)}
                           </div>
-                        ))}
-                      </div>
+                          <div className="space-y-2">
+                            {attributeNames.map((attr) => (
+                              <div key={attr} className="flex items-center gap-2">
+                                <span className="font-medium text-sm">{attr}:</span>
+                                <span className="text-muted-foreground">
+                                  {alternative[attr]}
+                                </span>
+                              </div>
+                            ))}
+                          </div>
+                        </>
+                      )}
                     </Label>
                   </div>
                 </div>
-              ))}
-            </RadioGroup>
+              );
+            })}
+          </RadioGroup>
           )}
 
           <div className="mt-8 flex items-center justify-between">
