@@ -25,6 +25,7 @@ const SurveyResponse = () => {
   
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
+  const [taskTransitioning, setTaskTransitioning] = useState(false);
   const [completed, setCompleted] = useState(false);
   const [error, setError] = useState("");
   
@@ -83,12 +84,15 @@ const SurveyResponse = () => {
     });
 
     if (currentTask < tasks.length - 1) {
-      // Reset selection before moving to next task for clean animation
+      // Show loading animation
+      setTaskTransitioning(true);
       setSelectedOption(null);
-      // Small delay to ensure animation triggers
+      
+      // Wait 600ms before showing next task
       setTimeout(() => {
         setCurrentTask(currentTask + 1);
-      }, 100);
+        setTaskTransitioning(false);
+      }, 600);
     } else {
       submitSurvey();
     }
@@ -211,51 +215,78 @@ const SurveyResponse = () => {
             </p>
           </div>
 
-          <RadioGroup
-            key={`task-${currentTask}`}
-            value={selectedOption?.toString()}
-            onValueChange={(val) => setSelectedOption(parseInt(val))}
-            className="space-y-4 animate-fade-in"
-          >
-            {currentTaskData.alternatives.map((alternative, idx) => (
-              <div
-                key={idx}
-                className={`rounded-lg border-2 p-6 transition-all cursor-pointer animate-scale-in ${
-                  selectedOption === idx
-                    ? "border-primary bg-primary/5"
-                    : "border-border hover:border-primary/50"
-                }`}
-                style={{ animationDelay: `${idx * 50}ms` }}
-                onClick={() => setSelectedOption(idx)}
-              >
-                <div className="flex items-start gap-4">
-                  <RadioGroupItem
-                    value={idx.toString()}
-                    id={`option-${idx}`}
-                    className="mt-1"
-                  />
-                  <Label
-                    htmlFor={`option-${idx}`}
-                    className="flex-1 cursor-pointer"
-                  >
-                    <div className="font-semibold mb-3 text-lg">
-                      Option {String.fromCharCode(65 + idx)}
+          {taskTransitioning ? (
+            <div className="space-y-4 animate-fade-in">
+              {[0, 1].map((idx) => (
+                <div
+                  key={idx}
+                  className="rounded-lg border-2 border-border p-6 animate-pulse"
+                >
+                  <div className="flex items-start gap-4">
+                    <div className="mt-1 h-5 w-5 rounded-full bg-muted" />
+                    <div className="flex-1">
+                      <div className="h-6 w-24 bg-muted rounded mb-3" />
+                      <div className="space-y-2">
+                        <div className="h-4 w-3/4 bg-muted rounded" />
+                        <div className="h-4 w-2/3 bg-muted rounded" />
+                        <div className="h-4 w-5/6 bg-muted rounded" />
+                      </div>
                     </div>
-                    <div className="space-y-2">
-                      {attributeNames.map((attr) => (
-                        <div key={attr} className="flex items-center gap-2">
-                          <span className="font-medium text-sm">{attr}:</span>
-                          <span className="text-muted-foreground">
-                            {alternative[attr]}
-                          </span>
-                        </div>
-                      ))}
-                    </div>
-                  </Label>
+                  </div>
                 </div>
+              ))}
+              <div className="text-center text-sm text-muted-foreground py-4">
+                <Loader2 className="h-5 w-5 animate-spin mx-auto mb-2" />
+                Loading next question...
               </div>
-            ))}
-          </RadioGroup>
+            </div>
+          ) : (
+            <RadioGroup
+              key={`task-${currentTask}`}
+              value={selectedOption?.toString()}
+              onValueChange={(val) => setSelectedOption(parseInt(val))}
+              className="space-y-4 animate-fade-in"
+            >
+              {currentTaskData.alternatives.map((alternative, idx) => (
+                <div
+                  key={idx}
+                  className={`rounded-lg border-2 p-6 transition-all cursor-pointer animate-scale-in ${
+                    selectedOption === idx
+                      ? "border-primary bg-primary/5"
+                      : "border-border hover:border-primary/50"
+                  }`}
+                  style={{ animationDelay: `${idx * 50}ms` }}
+                  onClick={() => setSelectedOption(idx)}
+                >
+                  <div className="flex items-start gap-4">
+                    <RadioGroupItem
+                      value={idx.toString()}
+                      id={`option-${idx}`}
+                      className="mt-1"
+                    />
+                    <Label
+                      htmlFor={`option-${idx}`}
+                      className="flex-1 cursor-pointer"
+                    >
+                      <div className="font-semibold mb-3 text-lg">
+                        Option {String.fromCharCode(65 + idx)}
+                      </div>
+                      <div className="space-y-2">
+                        {attributeNames.map((attr) => (
+                          <div key={attr} className="flex items-center gap-2">
+                            <span className="font-medium text-sm">{attr}:</span>
+                            <span className="text-muted-foreground">
+                              {alternative[attr]}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    </Label>
+                  </div>
+                </div>
+              ))}
+            </RadioGroup>
+          )}
 
           <div className="mt-8 flex items-center justify-between">
             <div className="flex gap-2">
@@ -275,7 +306,7 @@ const SurveyResponse = () => {
 
             <Button
               onClick={handleNext}
-              disabled={selectedOption === null || submitting}
+              disabled={selectedOption === null || submitting || taskTransitioning}
               className="gradient-primary"
               size="lg"
             >
