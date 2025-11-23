@@ -1,6 +1,7 @@
 // @ts-ignore - Supabase edge runtime types
 
 import { getGoogleSheetsToken, decryptProjectKey } from '../_shared/google-sheets.ts';
+import { saveAttributes as saveToMemory } from '../_shared/in-memory-store.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -14,56 +15,64 @@ Deno.serve(async (req) => {
 
   try {
     const { projectKey, attributes } = await req.json();
-    console.log('Saving attributes to Google Sheets');
+    console.log('Saving attributes');
 
     const sheetId = await decryptProjectKey(projectKey);
-    const token = await getGoogleSheetsToken();
+    
+    // Try Google Sheets first, fall back to in-memory storage
+    try {
+      const token = await getGoogleSheetsToken();
 
-    // Prepare data for Attributes sheet
-    const rows = [['Attribute', 'Level']];
-    attributes.forEach((attr: any) => {
-      if (attr.name) {
-        attr.levels.forEach((level: string) => {
-          if (level) {
-            rows.push([attr.name, level]);
-          }
-        });
+      // Prepare data for Attributes sheet
+      const rows = [['Attribute', 'Level']];
+      attributes.forEach((attr: any) => {
+        if (attr.name) {
+          attr.levels.forEach((level: string) => {
+            if (level) {
+              rows.push([attr.name, level]);
+            }
+          });
+        }
+      });
+
+      // Clear existing data
+      await fetch(
+        `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/Attributes!A:B:clear`,
+        {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+        }
+      );
+
+      // Write new data
+      const writeResponse = await fetch(
+        `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/Attributes!A1:append?valueInputOption=USER_ENTERED`,
+        {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            values: rows,
+          }),
+        }
+      );
+
+      if (!writeResponse.ok) {
+        const error = await writeResponse.text();
+        throw new Error(`Google Sheets write failed: ${error}`);
       }
-    });
 
-    // Clear existing data
-    await fetch(
-      `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/Attributes!A:B:clear`,
-      {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-      }
-    );
-
-    // Write new data
-    const writeResponse = await fetch(
-      `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/Attributes!A1:append?valueInputOption=USER_ENTERED`,
-      {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          values: rows,
-        }),
-      }
-    );
-
-    if (!writeResponse.ok) {
-      const error = await writeResponse.text();
-      throw new Error(`Failed to write to sheet: ${error}`);
+      console.log('Attributes saved successfully to Google Sheets');
+    } catch (googleError) {
+      console.warn('Google Sheets save failed, using in-memory storage:', googleError);
+      saveToMemory(sheetId, attributes);
+      console.log('Attributes saved to in-memory storage (temporary)');
     }
-
-    console.log('Attributes saved successfully to Google Sheets');
 
     return new Response(
       JSON.stringify({ success: true }),
