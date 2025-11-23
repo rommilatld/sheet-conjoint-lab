@@ -17,3 +17,15 @@ verify_jwt = false
 
 [functions."get-attributes"]
 verify_jwt = false
+
+[functions."generate-survey-link"]
+verify_jwt = false
+
+[functions."load-survey"]
+verify_jwt = false
+
+[functions."submit-survey-response"]
+verify_jwt = false
+
+[functions."get-surveys"]
+verify_jwt = false
