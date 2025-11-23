@@ -83,8 +83,12 @@ const SurveyResponse = () => {
     });
 
     if (currentTask < tasks.length - 1) {
-      setCurrentTask(currentTask + 1);
+      // Reset selection before moving to next task for clean animation
       setSelectedOption(null);
+      // Small delay to ensure animation triggers
+      setTimeout(() => {
+        setCurrentTask(currentTask + 1);
+      }, 100);
     } else {
       submitSurvey();
     }
@@ -208,18 +212,20 @@ const SurveyResponse = () => {
           </div>
 
           <RadioGroup
+            key={`task-${currentTask}`}
             value={selectedOption?.toString()}
             onValueChange={(val) => setSelectedOption(parseInt(val))}
-            className="space-y-4"
+            className="space-y-4 animate-fade-in"
           >
             {currentTaskData.alternatives.map((alternative, idx) => (
               <div
                 key={idx}
-                className={`rounded-lg border-2 p-6 transition-all cursor-pointer ${
+                className={`rounded-lg border-2 p-6 transition-all cursor-pointer animate-scale-in ${
                   selectedOption === idx
                     ? "border-primary bg-primary/5"
                     : "border-border hover:border-primary/50"
                 }`}
+                style={{ animationDelay: `${idx * 50}ms` }}
                 onClick={() => setSelectedOption(idx)}
               >
                 <div className="flex items-start gap-4">
