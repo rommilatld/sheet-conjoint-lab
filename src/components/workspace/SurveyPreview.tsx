@@ -233,7 +233,7 @@ export const SurveyPreview = ({ attributes, projectKey }: SurveyPreviewProps) =>
                 <p className="text-xs text-muted-foreground mt-0.5">High precision for critical decisions</p>
               </div>
               <div className="text-right">
-                <div className="text-xl font-bold text-primary">300+</div>
+                <div className="text-xl font-bold text-primary">400</div>
                 <p className="text-xs text-muted-foreground">responses</p>
               </div>
             </div>
@@ -244,7 +244,7 @@ export const SurveyPreview = ({ attributes, projectKey }: SurveyPreviewProps) =>
                 <p className="text-xs text-muted-foreground mt-0.5">Good balance for most projects</p>
               </div>
               <div className="text-right">
-                <div className="text-xl font-bold text-primary">200+</div>
+                <div className="text-xl font-bold text-primary">250</div>
                 <p className="text-xs text-muted-foreground">responses</p>
               </div>
             </div>
@@ -255,7 +255,7 @@ export const SurveyPreview = ({ attributes, projectKey }: SurveyPreviewProps) =>
                 <p className="text-xs text-muted-foreground mt-0.5">Acceptable for exploratory research</p>
               </div>
               <div className="text-right">
-                <div className="text-xl font-bold text-primary">100+</div>
+                <div className="text-xl font-bold text-primary">125</div>
                 <p className="text-xs text-muted-foreground">responses</p>
               </div>
             </div>
