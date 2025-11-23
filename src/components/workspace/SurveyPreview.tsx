@@ -131,7 +131,7 @@ export const SurveyPreview = ({ attributes, projectKey }: SurveyPreviewProps) =>
 
   // Generate random alternatives for preview
   const generateAlternatives = (count: number): Alternative[] => {
-    return Array.from({ length: count }, () => {
+    const alternatives = Array.from({ length: count }, () => {
       const alt: Alternative = {};
       attributes.forEach((attr) => {
         const randomLevel = attr.levels[Math.floor(Math.random() * attr.levels.length)];
@@ -139,9 +139,18 @@ export const SurveyPreview = ({ attributes, projectKey }: SurveyPreviewProps) =>
       });
       return alt;
     });
+    
+    // Add "None" option
+    const noneAlt: Alternative = {};
+    attributes.forEach((attr) => {
+      noneAlt[attr.name] = 'None of these';
+    });
+    alternatives.push(noneAlt);
+    
+    return alternatives;
   };
 
-  // Generate 3 tasks with 3 alternatives each
+  // Generate 3 tasks with 3 alternatives each + None
   const tasks = Array.from({ length: 3 }, () => generateAlternatives(3));
 
   const currentAlternatives = tasks[currentTask];
@@ -312,29 +321,41 @@ export const SurveyPreview = ({ attributes, projectKey }: SurveyPreviewProps) =>
           onValueChange={(val) => setSelectedOption(parseInt(val))}
           className="space-y-4"
         >
-          {currentAlternatives.map((alternative, idx) => (
-            <div
-              key={idx}
-              className={`rounded-lg border-2 p-6 transition-all ${
-                selectedOption === idx ? "border-primary bg-primary/5" : "border-border hover:border-primary/50"
-              }`}
-            >
-              <div className="flex items-start gap-4">
-                <RadioGroupItem value={idx.toString()} id={`option-${idx}`} className="mt-1" />
-                <Label htmlFor={`option-${idx}`} className="flex-1 cursor-pointer">
-                  <div className="font-semibold mb-3 text-lg">Option {String.fromCharCode(65 + idx)}</div>
-                  <div className="space-y-2">
-                    {attributes.map((attr) => (
-                      <div key={attr.name} className="flex items-center gap-2">
-                        <span className="font-medium text-sm">{attr.name}:</span>
-                        <span className="text-muted-foreground">{alternative[attr.name]}</span>
+          {currentAlternatives.map((alternative, idx) => {
+            const isNoneOption = Object.values(alternative).every(val => val === 'None of these');
+            
+            return (
+              <div
+                key={idx}
+                className={`rounded-lg border-2 p-6 transition-all ${
+                  selectedOption === idx ? "border-primary bg-primary/5" : "border-border hover:border-primary/50"
+                } ${isNoneOption ? 'bg-muted/30' : ''}`}
+              >
+                <div className="flex items-start gap-4">
+                  <RadioGroupItem value={idx.toString()} id={`option-${idx}`} className="mt-1" />
+                  <Label htmlFor={`option-${idx}`} className="flex-1 cursor-pointer">
+                    {isNoneOption ? (
+                      <div className="font-semibold text-lg text-muted-foreground">
+                        None of these options
                       </div>
-                    ))}
-                  </div>
-                </Label>
+                    ) : (
+                      <>
+                        <div className="font-semibold mb-3 text-lg">Option {String.fromCharCode(65 + idx)}</div>
+                        <div className="space-y-2">
+                          {attributes.map((attr) => (
+                            <div key={attr.name} className="flex items-center gap-2">
+                              <span className="font-medium text-sm">{attr.name}:</span>
+                              <span className="text-muted-foreground">{alternative[attr.name]}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </>
+                    )}
+                  </Label>
+                </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </RadioGroup>
 
         <div className="mt-8 flex items-center justify-between">

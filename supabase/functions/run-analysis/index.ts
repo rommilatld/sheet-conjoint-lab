@@ -362,18 +362,60 @@ Deno.serve(async (req) => {
     }
     
     // Parse responses (skip header)
-    const responses: Response[] = respRows.slice(1).map((row: string[]) => ({
+    const allResponses: Response[] = respRows.slice(1).map((row: string[]) => ({
       responseId: row[0],
       surveyId: row[1],
       taskId: row[2],
       selectedAlt: parseInt(row[3]),
     }));
     
+    // Load Design tab to identify "None" alternatives
+    const designResponse = await fetch(
+      `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/Design!A:Z`,
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      }
+    );
+    
+    // Track which alternatives are "None" for each task
+    const noneAlternatives = new Map<string, number>();
+    
+    if (designResponse.ok) {
+      const designData = await designResponse.json();
+      const designRows = designData.values || [];
+      
+      // Skip header and parse design
+      for (let i = 1; i < designRows.length; i++) {
+        const row = designRows[i];
+        const taskId = row[0];
+        const altId = parseInt(row[1]);
+        
+        // Check if all attributes are "None of these"
+        const isNoneAlt = row.slice(2).every((val: string) => val === 'None of these' || !val);
+        if (isNoneAlt) {
+          noneAlternatives.set(taskId, altId);
+        }
+      }
+      
+      console.log(`Identified ${noneAlternatives.size} "None" alternatives across tasks`);
+    }
+    
+    // Filter out responses where "None" was selected
+    const responses = allResponses.filter(resp => {
+      const noneAltIndex = noneAlternatives.get(resp.taskId);
+      return noneAltIndex === undefined || resp.selectedAlt !== noneAltIndex;
+    });
+    
+    const filteredCount = allResponses.length - responses.length;
+    console.log(`Filtered out ${filteredCount} "None" responses`);
+    
     // Count unique response IDs
     const uniqueResponseIds = new Set(responses.map(r => r.responseId));
     const totalUniqueResponses = uniqueResponseIds.size;
     
-    console.log(`Analyzing ${responses.length} response rows from ${totalUniqueResponses} unique respondents`);
+    console.log(`Analyzing ${responses.length} response rows from ${totalUniqueResponses} unique respondents (${filteredCount} "None" responses excluded)`);
     
     // Run analysis
     const results = runConjointAnalysis(responses, attributes, numPlans, pricingStrategy, goal);
