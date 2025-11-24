@@ -304,7 +304,13 @@ Deno.serve(async (req) => {
     );
 
     if (!attrResponse.ok) {
-      throw new Error('Failed to read attributes');
+      const errorText = await attrResponse.text();
+      console.error('Google Sheets API error when reading attributes:', {
+        status: attrResponse.status,
+        statusText: attrResponse.statusText,
+        body: errorText
+      });
+      throw new Error(`Failed to read attributes: ${attrResponse.status} ${attrResponse.statusText} - ${errorText}`);
     }
 
     const attrData = await attrResponse.json();
