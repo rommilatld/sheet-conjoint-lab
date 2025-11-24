@@ -7,6 +7,63 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+async function ensureTabExists(sheetId: string, token: string, tabName: string) {
+  // Check if tab exists
+  const sheetResponse = await fetch(
+    `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}`,
+    {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    }
+  );
+
+  if (!sheetResponse.ok) {
+    throw new Error('Failed to access spreadsheet');
+  }
+
+  const sheetData = await sheetResponse.json();
+  const existingSheets = sheetData.sheets || [];
+  const tabExists = existingSheets.some((sheet: any) =>
+    sheet.properties.title === tabName
+  );
+
+  if (!tabExists) {
+    console.log(`Creating ${tabName} tab...`);
+    const createResponse = await fetch(
+      `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}:batchUpdate`,
+      {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          requests: [
+            {
+              addSheet: {
+                properties: {
+                  title: tabName,
+                  gridProperties: {
+                    rowCount: 1000,
+                    columnCount: 26,
+                  },
+                },
+              },
+            },
+          ],
+        }),
+      }
+    );
+
+    if (!createResponse.ok) {
+      const error = await createResponse.text();
+      throw new Error(`Failed to create ${tabName} tab: ${error}`);
+    }
+    console.log(`${tabName} tab created successfully`);
+  }
+}
+
 interface Response {
   responseId: string;
   surveyId: string;
@@ -293,6 +350,9 @@ Deno.serve(async (req) => {
     const sheetId = await decryptProjectKey(projectKey);
     const token = await getGoogleSheetsToken();
     
+    // Ensure Attributes tab exists (will create if missing)
+    await ensureTabExists(sheetId, token, 'Attributes');
+    
     // Read attributes
     const attrResponse = await fetch(
       `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/Attributes!A:D`,
@@ -316,6 +376,9 @@ Deno.serve(async (req) => {
     const attrData = await attrResponse.json();
     const attrRows = attrData.values || [];
     
+    if (attrRows.length <= 1) {
+      throw new Error('No attributes found. Please configure attributes in the Attributes tab before running analysis.');
+    }
     // Parse attributes
     const attributesMap = new Map();
     const priceInfo = new Map();
