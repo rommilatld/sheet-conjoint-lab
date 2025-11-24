@@ -272,58 +272,107 @@ function generatePlans(
   return { plans: finalPlans, priceMismatchWarning };
 }
 
-// Simple MNL conjoint analysis using iterative weighted least squares
+// Calculate utilities from actual survey data using counting approach
 function runConjointAnalysis(
   responses: Response[], 
   attributes: Attribute[], 
+  designData: Map<string, Map<number, Map<string, string>>>,
   numPlans: number, 
   pricingStrategy: 'submitted' | 'suggested',
   goal: 'revenue' | 'purchases'
 ) {
-  // Count total responses for each attribute level
-  const levelCounts: { [key: string]: number } = {};
-  const levelTotals: { [key: string]: number } = {};
+  // Count how often each level appears when chosen vs not chosen
+  const levelChosen: { [key: string]: number } = {};
+  const levelNotChosen: { [key: string]: number } = {};
   
   // Initialize counts
   attributes.forEach(attr => {
     attr.levels.forEach(level => {
       const key = `${attr.name}:${level}`;
-      levelCounts[key] = 0;
-      levelTotals[key] = 0;
+      levelChosen[key] = 0;
+      levelNotChosen[key] = 0;
     });
   });
   
-  // Count selections (this is a simplified approach)
-  // In a full implementation, we'd need the actual task design data
+  // Process each response
   responses.forEach(resp => {
-    // For now, we'll create a simplified utility model
-    // This would need the actual attribute values shown in each task
+    const taskDesign = designData.get(resp.taskId);
+    if (!taskDesign) return;
+    
+    // For each alternative in this task
+    taskDesign.forEach((levels, altId) => {
+      const wasChosen = altId === resp.selectedAlt;
+      
+      // Count each attribute level
+      levels.forEach((level, attrName) => {
+        // Skip "None of these" alternatives
+        if (level === 'None of these') return;
+        
+        const key = `${attrName}:${level}`;
+        if (wasChosen) {
+          levelChosen[key] = (levelChosen[key] || 0) + 1;
+        } else {
+          levelNotChosen[key] = (levelNotChosen[key] || 0) + 1;
+        }
+      });
+    });
   });
   
-  // Calculate relative utilities (simplified)
+  // Calculate utilities based on selection rates
   const utilities: { [key: string]: number } = {};
   const importances: { [key: string]: number } = {};
   
   attributes.forEach(attr => {
     const levelUtils: number[] = [];
-    attr.levels.forEach((level, idx) => {
-      // Simplified: assign relative utilities based on selection frequency
+    
+    attr.levels.forEach(level => {
       const key = `${attr.name}:${level}`;
-      const util = Math.random() * 2 - 1; // Placeholder: -1 to 1
-      utilities[key] = util;
-      levelUtils.push(Math.abs(util));
+      const chosen = levelChosen[key] || 0;
+      const notChosen = levelNotChosen[key] || 0;
+      const total = chosen + notChosen;
+      
+      if (total === 0) {
+        // Level never appeared - assign neutral utility
+        utilities[key] = 0;
+        levelUtils.push(0);
+      } else {
+        // Calculate selection rate
+        const selectionRate = chosen / total;
+        
+        // Convert to utility using log-odds (logit transformation)
+        // This handles 0 and 1 selection rates gracefully
+        const adjustedRate = Math.max(0.01, Math.min(0.99, selectionRate));
+        const utility = Math.log(adjustedRate / (1 - adjustedRate));
+        
+        utilities[key] = utility;
+        levelUtils.push(utility);
+      }
     });
     
+    // Normalize utilities within each attribute (zero-center)
+    const meanUtil = levelUtils.reduce((a, b) => a + b, 0) / levelUtils.length;
+    attr.levels.forEach((level, idx) => {
+      const key = `${attr.name}:${level}`;
+      utilities[key] = utilities[key] - meanUtil;
+    });
+    
+    // Recalculate levelUtils after normalization
+    const normalizedUtils = attr.levels.map(level => utilities[`${attr.name}:${level}`]);
+    
     // Calculate importance as range of utilities within attribute
-    const range = Math.max(...levelUtils) - Math.min(...levelUtils);
+    const maxUtil = Math.max(...normalizedUtils);
+    const minUtil = Math.min(...normalizedUtils);
+    const range = maxUtil - minUtil;
     importances[attr.name] = range;
   });
   
   // Normalize importances to percentages
   const totalImportance = Object.values(importances).reduce((a, b) => a + b, 0);
-  Object.keys(importances).forEach(attr => {
-    importances[attr] = (importances[attr] / totalImportance) * 100;
-  });
+  if (totalImportance > 0) {
+    Object.keys(importances).forEach(attr => {
+      importances[attr] = (importances[attr] / totalImportance) * 100;
+    });
+  }
   
   // Generate plans
   const { plans, priceMismatchWarning } = generatePlans(numPlans, attributes, utilities, responses, pricingStrategy, goal);
@@ -438,7 +487,7 @@ Deno.serve(async (req) => {
       selectedAlt: parseInt(row[3]),
     }));
     
-    // Load Design tab to identify "None" alternatives
+    // Load Design tab to parse task structure and identify "None" alternatives
     const designResponse = await fetch(
       `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/Design!A:Z`,
       {
@@ -448,28 +497,63 @@ Deno.serve(async (req) => {
       }
     );
     
-    // Track which alternatives are "None" for each task
+    if (!designResponse.ok) {
+      throw new Error('Failed to load Design tab. Please ensure your survey design exists.');
+    }
+    
+    const designData = await designResponse.json();
+    const designRows = designData.values || [];
+    
+    if (designRows.length <= 1) {
+      throw new Error('No design data found. Please generate a survey first.');
+    }
+    
+    // Parse design data structure: taskId -> altId -> attributeName -> level
+    const designMap = new Map<string, Map<number, Map<string, string>>>();
     const noneAlternatives = new Map<string, number>();
     
-    if (designResponse.ok) {
-      const designData = await designResponse.json();
-      const designRows = designData.values || [];
+    // Get attribute names from header (columns 2+)
+    const attrNames = designRows[0].slice(2);
+    
+    // Skip header and parse design
+    for (let i = 1; i < designRows.length; i++) {
+      const row = designRows[i];
+      const taskId = row[0];
+      const altId = parseInt(row[1]);
       
-      // Skip header and parse design
-      for (let i = 1; i < designRows.length; i++) {
-        const row = designRows[i];
-        const taskId = row[0];
-        const altId = parseInt(row[1]);
+      if (!taskId || isNaN(altId)) continue;
+      
+      // Initialize task map if needed
+      if (!designMap.has(taskId)) {
+        designMap.set(taskId, new Map());
+      }
+      
+      // Parse attribute levels for this alternative
+      const altLevels = new Map<string, string>();
+      let isNoneAlt = true;
+      
+      for (let j = 0; j < attrNames.length && j < row.length - 2; j++) {
+        const attrName = attrNames[j];
+        const level = row[j + 2];
         
-        // Check if all attributes are "None of these"
-        const isNoneAlt = row.slice(2).every((val: string) => val === 'None of these' || !val);
-        if (isNoneAlt) {
-          noneAlternatives.set(taskId, altId);
+        if (attrName && level) {
+          altLevels.set(attrName, level);
+          if (level !== 'None of these') {
+            isNoneAlt = false;
+          }
         }
       }
       
-      console.log(`Identified ${noneAlternatives.size} "None" alternatives across tasks`);
+      designMap.get(taskId)!.set(altId, altLevels);
+      
+      // Track "None" alternatives
+      if (isNoneAlt) {
+        noneAlternatives.set(taskId, altId);
+      }
     }
+    
+    console.log(`Parsed ${designMap.size} tasks with design data`);
+    console.log(`Identified ${noneAlternatives.size} "None" alternatives across tasks`);
     
     // Filter out responses where "None" was selected
     const responses = allResponses.filter(resp => {
@@ -486,8 +570,13 @@ Deno.serve(async (req) => {
     
     console.log(`Analyzing ${responses.length} response rows from ${totalUniqueResponses} unique respondents (${filteredCount} "None" responses excluded)`);
     
-    // Run analysis
-    const results = runConjointAnalysis(responses, attributes, numPlans, pricingStrategy, goal);
+    // Validate we have design data for analysis
+    if (designMap.size === 0) {
+      throw new Error('No valid design data found. Cannot calculate utilities without task design information.');
+    }
+    
+    // Run analysis with design data
+    const results = runConjointAnalysis(responses, attributes, designMap, numPlans, pricingStrategy, goal);
     
     // Override totalResponses with unique count
     results.totalResponses = totalUniqueResponses;
