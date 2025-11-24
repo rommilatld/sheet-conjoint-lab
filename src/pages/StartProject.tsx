@@ -208,6 +208,15 @@ const StartProject = () => {
                   "Create Project"
                 )}
               </Button>
+
+              <Button
+                onClick={() => navigate("/")}
+                variant="ghost"
+                className="w-full"
+                size="lg"
+              >
+                Cancel
+              </Button>
             </div>
           </div>
         </Card>
