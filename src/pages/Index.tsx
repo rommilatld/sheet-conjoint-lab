@@ -113,8 +113,7 @@ const Index = () => {
               {
                 step: "01",
                 title: "Connect Your Google Sheet",
-                description:
-                  "Share a Google Sheet with our service account. We'll create the required tabs automatically.",
+                description: "Share a Google Sheet with our service account.",
               },
               {
                 step: "02",
