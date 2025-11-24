@@ -28,8 +28,9 @@ const Index = () => {
               <span className="bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">Simplified</span>
             </h1>
             <p className="mb-10 text-xl text-muted-foreground md:text-2xl">
-              Build, distribute, and analyze conjoint studies to inform subscription plans. All you need is a Google
-              Sheet.
+              Build, distribute, and analyze conjoint studies to inform subscription plans.
+              <br />
+              All you need is a Google Sheet.
             </p>
             <div className="flex flex-col gap-4 sm:flex-row sm:justify-center">
               <Link to="/start">
