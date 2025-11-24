@@ -5,8 +5,7 @@ import { Link } from "react-router-dom";
 import enLogo from "@/assets/en-logo.jpg";
 import { Footer } from "@/components/Footer";
 const Index = () => {
-  return (
-    <div className="min-h-screen">
+  return <div className="min-h-screen">
       {/* Header */}
       <header className="border-b bg-card">
         <div className="container mx-auto px-6 py-4">
@@ -28,8 +27,7 @@ const Index = () => {
               <span className="bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">Simplified</span>
             </h1>
             <p className="mb-10 text-xl text-muted-foreground md:text-2xl">
-              Build, distribute, and analyze conjoint studies for subscription plans. Your data stays in your Google
-              Sheet—no database, maximum control.
+              Build, distribute, and analyze conjoint studies to inform subscription plans. Your data stays in your Google Sheet—no database, maximum control.
             </p>
             <div className="flex flex-col gap-4 sm:flex-row sm:justify-center">
               <Link to="/start">
@@ -108,30 +106,23 @@ const Index = () => {
           </div>
 
           <div className="mx-auto max-w-3xl space-y-8">
-            {[
-              {
-                step: "01",
-                title: "Connect Your Google Sheet",
-                description:
-                  "Share a Google Sheet with our service account. We'll create the required tabs automatically.",
-              },
-              {
-                step: "02",
-                title: "Design Your Survey",
-                description: "Enter attributes and levels. We generate an optimal fractional factorial design.",
-              },
-              {
-                step: "03",
-                title: "Collect Responses",
-                description: "Share your secure survey link. Responses are saved directly to your sheet.",
-              },
-              {
-                step: "04",
-                title: "Analyze Results",
-                description: "Run MNL analysis with one click. Export detailed reports and insights.",
-              },
-            ].map((item) => (
-              <Card key={item.step} className="shadow-card transition-smooth hover:shadow-elegant p-8">
+            {[{
+            step: "01",
+            title: "Connect Your Google Sheet",
+            description: "Share a Google Sheet with our service account. We'll create the required tabs automatically."
+          }, {
+            step: "02",
+            title: "Design Your Survey",
+            description: "Enter attributes and levels. We generate an optimal fractional factorial design."
+          }, {
+            step: "03",
+            title: "Collect Responses",
+            description: "Share your secure survey link. Responses are saved directly to your sheet."
+          }, {
+            step: "04",
+            title: "Analyze Results",
+            description: "Run MNL analysis with one click. Export detailed reports and insights."
+          }].map(item => <Card key={item.step} className="shadow-card transition-smooth hover:shadow-elegant p-8">
                 <div className="flex gap-6">
                   <div className="flex-shrink-0">
                     <div className="flex h-16 w-16 items-center justify-center rounded-xl gradient-secondary text-2xl font-bold text-white">
@@ -143,8 +134,7 @@ const Index = () => {
                     <p className="text-lg text-muted-foreground">{item.description}</p>
                   </div>
                 </div>
-              </Card>
-            ))}
+              </Card>)}
           </div>
         </div>
       </section>
@@ -166,7 +156,6 @@ const Index = () => {
       </section>
 
       <Footer />
-    </div>
-  );
+    </div>;
 };
 export default Index;
