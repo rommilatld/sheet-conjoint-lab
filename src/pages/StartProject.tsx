@@ -20,8 +20,9 @@ const StartProject = () => {
 
   // IMPORTANT: If you're setting up your own instance of this app,
   // update this email to match YOUR service account email from Google Cloud.
+  // This should be the same email you configured in GOOGLE_SERVICE_ACCOUNT_EMAIL secret.
   // See SETUP.md for detailed instructions.
-  const serviceAccountEmail = "planbuilder@planbuilder-479123.iam.gserviceaccount.com";
+  const serviceAccountEmail = "your-service-account@your-project.iam.gserviceaccount.com";
 
   const handleCreateProject = async () => {
     setError("");
