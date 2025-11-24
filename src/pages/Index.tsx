@@ -54,7 +54,7 @@ const Index = () => {
         <div className="container mx-auto px-6">
           <div className="mb-16 text-center">
             <h2 className="mb-4 text-3xl font-bold md:text-4xl">
-              Everything you need designing your subscription plans
+              Everything you need to design your subscription plan.
             </h2>
             <p className="text-lg text-muted-foreground">Professional tools powered by Google Sheets</p>
           </div>
