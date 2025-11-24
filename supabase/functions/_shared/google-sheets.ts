@@ -112,8 +112,12 @@ export async function getGoogleSheetsToken() {
 
     if (!tokenResponse.ok) {
       const error = await tokenResponse.text();
-      console.error('Token exchange failed:', error);
-      throw new Error(`Failed to get access token: ${error}`);
+      console.error('Token exchange failed:', {
+        status: tokenResponse.status,
+        statusText: tokenResponse.statusText,
+        body: error
+      });
+      throw new Error(`Failed to get access token: ${tokenResponse.status} - ${error}`);
     }
 
     const tokenData = await tokenResponse.json();

@@ -33,7 +33,13 @@ Deno.serve(async (req) => {
       );
 
       if (!response.ok) {
-        throw new Error('Failed to read from Google Sheets');
+        const errorText = await response.text();
+        console.error('Google Sheets API error:', {
+          status: response.status,
+          statusText: response.statusText,
+          body: errorText
+        });
+        throw new Error(`Failed to read from Google Sheets: ${response.status} ${response.statusText} - ${errorText}`);
       }
 
       const data = await response.json();
