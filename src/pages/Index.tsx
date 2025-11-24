@@ -118,7 +118,7 @@ const Index = () => {
               {
                 step: "02",
                 title: "Design Your Survey",
-                description: "Enter attributes and levels. We will create an optimal fractional factorial design.",
+                description: "Enter attributes and levels. We will create the optimal fractional factorial design.",
               },
               {
                 step: "03",
