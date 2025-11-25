@@ -498,14 +498,14 @@ Deno.serve(async (req) => {
     );
     
     if (!designResponse.ok) {
-      throw new Error('Failed to load Design tab. Please ensure your survey design exists.');
+      throw new Error('No survey design found. Please generate survey links in the "Generate Links" tab first. The survey design is created when you generate your first link.');
     }
     
     const designData = await designResponse.json();
     const designRows = designData.values || [];
     
     if (designRows.length <= 1) {
-      throw new Error('No design data found. Please generate a survey first.');
+      throw new Error('No survey design found. Please generate survey links in the "Generate Links" tab first to create your survey design.');
     }
     
     // Parse design data structure: taskId -> altId -> attributeName -> level
