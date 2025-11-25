@@ -40,7 +40,35 @@ export const AnalysisTab = ({ projectKey }: AnalysisTabProps) => {
   const [noResponses, setNoResponses] = useState(false);
   const [priceWarning, setPriceWarning] = useState<string>("");
   const [successMessage, setSuccessMessage] = useState<string>("");
+  const [checkingDesign, setCheckingDesign] = useState(true);
+  const [designExists, setDesignExists] = useState(false);
   const { toast } = useToast();
+
+  // Check if Design tab exists (survey links have been generated)
+  useEffect(() => {
+    const checkDesignTab = async () => {
+      setCheckingDesign(true);
+      try {
+        const { data, error } = await supabase.functions.invoke("get-surveys", {
+          body: { projectKey },
+        });
+
+        // If surveys exist, Design tab exists
+        if (!error && data?.surveys && data.surveys.length > 0) {
+          setDesignExists(true);
+        } else {
+          setDesignExists(false);
+        }
+      } catch (err) {
+        console.error("Error checking design tab:", err);
+        setDesignExists(false);
+      } finally {
+        setCheckingDesign(false);
+      }
+    };
+
+    checkDesignTab();
+  }, [projectKey]);
 
   // Fetch attributes to set default number of plans based on pricing levels
   useEffect(() => {
@@ -328,6 +356,34 @@ export const AnalysisTab = ({ projectKey }: AnalysisTabProps) => {
           </p>
         </div>
 
+        {checkingDesign && (
+          <div className="flex items-center gap-2 text-muted-foreground mb-6">
+            <Loader2 className="h-4 w-4 animate-spin" />
+            <span className="text-sm">Checking survey setup...</span>
+          </div>
+        )}
+
+        {!checkingDesign && !designExists && (
+          <div className="mb-6 rounded-lg border-2 border-dashed border-yellow-500/50 bg-yellow-500/5 p-6">
+            <div className="flex items-start gap-3">
+              <div className="rounded-full bg-yellow-500/10 p-2">
+                <BarChart3 className="h-5 w-5 text-yellow-600" />
+              </div>
+              <div className="flex-1">
+                <h3 className="font-semibold text-yellow-900 dark:text-yellow-100 mb-1">
+                  Survey Links Required
+                </h3>
+                <p className="text-sm text-yellow-800 dark:text-yellow-200 mb-3">
+                  Before running analysis, you need to generate survey links. This creates the survey design structure needed for calculations.
+                </p>
+                <p className="text-sm text-yellow-800 dark:text-yellow-200 font-medium">
+                  → Go to the <span className="font-bold">Generate Links</span> tab to create your first survey link
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+
         <div className="space-y-6 mb-6">
           <div className="max-w-xs">
             <Label htmlFor="numPlans">Number of Plans to Generate</Label>
@@ -432,7 +488,12 @@ export const AnalysisTab = ({ projectKey }: AnalysisTabProps) => {
           </div>
         </div>
 
-        <Button onClick={runAnalysis} disabled={loading} className="gradient-primary" size="lg">
+        <Button 
+          onClick={runAnalysis} 
+          disabled={loading || !designExists || checkingDesign} 
+          className="gradient-primary" 
+          size="lg"
+        >
           {loading ? (
             <>
               <Loader2 className="mr-2 h-5 w-5 animate-spin" />
