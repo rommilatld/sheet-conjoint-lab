@@ -226,6 +226,95 @@ Deno.serve(async (req) => {
     // Generate random tasks for the survey
     const tasks = generateRandomTasks(attributes, optimalTaskCount, 3);
     
+    // Save design to Google Sheets Design tab (needed for analysis)
+    try {
+      // Create Design tab if it doesn't exist
+      await fetch(
+        `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}:batchUpdate`,
+        {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            requests: [
+              {
+                addSheet: {
+                  properties: {
+                    title: 'Design',
+                  },
+                },
+              },
+            ],
+          }),
+        }
+      );
+    } catch (e) {
+      // Tab might already exist
+    }
+    
+    // Check if design already exists for this survey
+    const existingDesignResponse = await fetch(
+      `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/Design!A:A`,
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      }
+    );
+    
+    let designExists = false;
+    if (existingDesignResponse.ok) {
+      const existingData = await existingDesignResponse.json();
+      const existingRows = existingData.values || [];
+      // Check if any row contains this surveyId prefix
+      designExists = existingRows.some((row: string[]) => 
+        row[0] && row[0].startsWith(`${surveyId}_`)
+      );
+    }
+    
+    // Only write design if it doesn't exist yet
+    if (!designExists) {
+      // Build design rows: TaskID, AltID, Attribute1, Attribute2, ...
+      const designRows: any[][] = [];
+      
+      // Header row
+      const attrNames = attributes.map(a => a.name);
+      designRows.push(['TaskID', 'AltID', ...attrNames]);
+      
+      // Data rows
+      tasks.forEach(task => {
+        task.alternatives.forEach((alt: any, altIndex: number) => {
+          const row = [
+            `${surveyId}_task${task.taskId}`,
+            altIndex.toString(),
+            ...attrNames.map(name => alt[name] || '')
+          ];
+          designRows.push(row);
+        });
+      });
+      
+      // Append to Design tab
+      await fetch(
+        `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/Design!A:Z:append?valueInputOption=RAW`,
+        {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            values: designRows,
+          }),
+        }
+      );
+      
+      console.log(`Saved design structure for survey ${surveyId} to Design tab`);
+    } else {
+      console.log(`Design already exists for survey ${surveyId}, skipping`);
+    }
+    
     console.log(`Survey loaded with ${tasks.length} tasks`);
 
     return new Response(
