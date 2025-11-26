@@ -415,7 +415,9 @@ export const SurveyPreview = ({ attributes, projectKey }: SurveyPreviewProps) =>
                 Submit
               </Button>
             </div>
-            <p className="text-xs text-muted-foreground mt-2">Submitting a donation will end the survey immediately</p>
+            <p className="text-xs text-muted-foreground mt-2">
+              Submitting a donation suggestion will end the survey immediately
+            </p>
           </div>
         </div>
 
