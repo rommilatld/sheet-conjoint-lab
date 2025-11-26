@@ -90,8 +90,15 @@ function generateRandomTasks(attributes: any[], numTasks: number, numAlternative
       do {
         alternative = {};
         attributes.forEach((attr) => {
+          // const randomLevel = attr.levels[Math.floor(Math.random() * attr.levels.length)];
+          // alternative[attr.name] = randomLevel;
           const randomLevel = attr.levels[Math.floor(Math.random() * attr.levels.length)];
-          alternative[attr.name] = randomLevel;
+
+          // OLD — COMMENT OUT
+          // alternative[attr.name] = randomLevel;
+
+          // NEW — applies icon mapping
+          alternative[attr.name] = mapLevelToIcon(randomLevel);
         });
         attempts++;
       } while (attempts < 50 && alternatives.some((existing) => areAlternativesEqual(existing, alternative)));
@@ -102,7 +109,11 @@ function generateRandomTasks(attributes: any[], numTasks: number, numAlternative
     // Add "None" option as the last alternative
     const noneAlternative: any = {};
     attributes.forEach((attr) => {
-      noneAlternative[attr.name] = "None of these";
+      // OLD — COMMENT OUT
+      // noneAlternative[attr.name] = "None of these";
+
+      // NEW
+      noneAlternative[attr.name] = mapLevelToIcon("None of these");
     });
     alternatives.push(noneAlternative);
 
@@ -199,7 +210,8 @@ Deno.serve(async (req) => {
 
     const attributes = Array.from(attributesMap.entries()).map(([name, levels]) => ({
       name,
-      levels,
+      //levels,
+      levels: levels.map((l: string) => mapLevelToIcon(l)),
     }));
 
     if (attributes.length === 0) {
@@ -208,6 +220,22 @@ Deno.serve(async (req) => {
 
     // Calculate optimal number of tasks based on attributes
     const optimalTaskCount = calculateOptimalTaskCount(attributes);
+
+    // Rommil Addition
+    // ICON TRANSFORMATION MAP
+    const ICON_MAP: Record<string, string> = {
+      Included: "✔️",
+      "Not included": "❌",
+      Unlimited: "♾️",
+      Premium: "💎",
+      Basic: "📦",
+      "None of these": "🚫",
+    };
+
+    // Converts level text to icon
+    function mapLevelToIcon(level: string): string {
+      return ICON_MAP[level] || level;
+    }
 
     // Generate random tasks for the survey
     const tasks = generateRandomTasks(attributes, optimalTaskCount, 3);
