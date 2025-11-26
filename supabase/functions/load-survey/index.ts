@@ -6,14 +6,14 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-// ICON MAP — case-insensitive, matches spreadsheet levels
+// UNICODE ICON MAP — stable, non-emoji, universally supported
 const ICON_MAP: Record<string, string> = {
-  included: "✔️",
-  "not included": "❌",
-  "none of these": "🚫",
-  unlimited: "♾️",
-  premium: "💎",
-  basic: "📦",
+  included: "✔",
+  "not included": "✘",
+  "none of these": "—",
+  unlimited: "∞",
+  premium: "★",
+  basic: "•",
 };
 
 // Case-insensitive icon transformer
@@ -80,7 +80,7 @@ function generateRandomTasks(attributes: any[], numTasks: number, numAlternative
         attributes.forEach((attr) => {
           const randomLevel = attr.levels[Math.floor(Math.random() * attr.levels.length)];
 
-          // apply icon mapping
+          // apply unicode icon mapping
           alternative[attr.name] = mapLevelToIcon(randomLevel);
         });
         attempts++;
@@ -149,7 +149,7 @@ Deno.serve(async (req) => {
       }
     }
 
-    // attributes mapped ONCE here (so levels contain icons now)
+    // attributes mapped ONCE here (levels already unicode)
     const attributes = Array.from(attributesMap.entries()).map(([name, levels]) => ({
       name,
       levels: levels.map((l: string) => mapLevelToIcon(l)),
