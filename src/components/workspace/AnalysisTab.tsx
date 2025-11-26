@@ -29,6 +29,11 @@ interface AnalysisResults {
   plans: Plan[];
   currency?: string;
   priceMismatchWarning?: string;
+  donationData?: {
+    average: number;
+    count: number;
+    amounts: number[];
+  };
 }
 
 export const AnalysisTab = ({ projectKey }: AnalysisTabProps) => {
@@ -286,6 +291,58 @@ export const AnalysisTab = ({ projectKey }: AnalysisTabProps) => {
           yPos += 5;
         });
         yPos += 8;
+      });
+    }
+
+    // Donation Statistics
+    if (results.donationData && results.donationData.count > 0) {
+      if (yPos > 230) {
+        doc.addPage();
+        yPos = 20;
+      }
+
+      doc.setFontSize(16);
+      doc.setFont(undefined, "bold");
+      doc.setTextColor(0, 0, 0);
+      doc.text("What Respondents Would Donate Instead", 20, yPos);
+      yPos += 10;
+
+      doc.setFontSize(10);
+      doc.setFont(undefined, "normal");
+      doc.text(`Total Donations: ${results.donationData.count}`, 25, yPos);
+      yPos += 6;
+      doc.text(`Average Donation: $${results.donationData.average.toFixed(2)}`, 25, yPos);
+      yPos += 10;
+
+      // Donation distribution histogram
+      doc.setFontSize(12);
+      doc.setFont(undefined, "bold");
+      doc.text("Distribution", 25, yPos);
+      yPos += 8;
+
+      // Group donations into buckets
+      const amounts = results.donationData.amounts;
+      const max = Math.max(...amounts);
+      const bucketSize = Math.ceil(max / 5);
+      const buckets = Array(5).fill(0);
+      
+      amounts.forEach(amount => {
+        const bucketIndex = Math.min(Math.floor(amount / bucketSize), 4);
+        buckets[bucketIndex]++;
+      });
+
+      doc.setFontSize(9);
+      doc.setFont(undefined, "normal");
+      buckets.forEach((count, idx) => {
+        const rangeStart = idx * bucketSize;
+        const rangeEnd = (idx + 1) * bucketSize;
+        const barWidth = (count / Math.max(...buckets)) * 100;
+        
+        doc.text(`$${rangeStart}-$${rangeEnd}:`, 25, yPos);
+        doc.setFillColor(139, 92, 246);
+        doc.rect(70, yPos - 3, barWidth, 5, "F");
+        doc.text(`${count}`, 175, yPos, { align: "right" });
+        yPos += 7;
       });
     }
 
@@ -654,6 +711,71 @@ export const AnalysisTab = ({ projectKey }: AnalysisTabProps) => {
                       </Card>
                     );
                   })}
+                </div>
+              </div>
+            )}
+
+            {results.donationData && results.donationData.count > 0 && (
+              <div>
+                <h4 className="mb-3 text-lg font-semibold">What Respondents Would Donate Instead</h4>
+                <p className="mb-4 text-xs text-muted-foreground">
+                  {results.donationData.count} respondents chose to donate rather than select a subscription
+                </p>
+                <div className="rounded-lg border p-6 bg-muted/20">
+                  <div className="grid md:grid-cols-2 gap-6 mb-6">
+                    <div className="text-center p-4 rounded-lg bg-background">
+                      <div className="text-3xl font-bold text-primary mb-1">
+                        ${results.donationData.average.toFixed(2)}
+                      </div>
+                      <div className="text-sm text-muted-foreground">Average Donation</div>
+                    </div>
+                    <div className="text-center p-4 rounded-lg bg-background">
+                      <div className="text-3xl font-bold text-primary mb-1">
+                        {results.donationData.count}
+                      </div>
+                      <div className="text-sm text-muted-foreground">Total Donations</div>
+                    </div>
+                  </div>
+                  
+                  <div>
+                    <h5 className="font-semibold mb-3 text-sm">Distribution</h5>
+                    <div className="space-y-2">
+                      {(() => {
+                        const amounts = results.donationData!.amounts;
+                        const max = Math.max(...amounts);
+                        const bucketSize = Math.ceil(max / 5);
+                        const buckets = Array(5).fill(0).map(() => 0);
+                        
+                        amounts.forEach(amount => {
+                          const bucketIndex = Math.min(Math.floor(amount / bucketSize), 4);
+                          buckets[bucketIndex]++;
+                        });
+
+                        const maxCount = Math.max(...buckets);
+
+                        return buckets.map((count, idx) => {
+                          const rangeStart = idx * bucketSize;
+                          const rangeEnd = (idx + 1) * bucketSize;
+                          const percentage = maxCount > 0 ? (count / maxCount) * 100 : 0;
+
+                          return (
+                            <div key={idx} className="flex items-center gap-3">
+                              <div className="text-xs font-mono w-24 text-muted-foreground">
+                                ${rangeStart}-${rangeEnd}
+                              </div>
+                              <div className="flex-1 h-6 bg-muted rounded overflow-hidden">
+                                <div
+                                  className="h-full bg-primary transition-all"
+                                  style={{ width: `${percentage}%` }}
+                                />
+                              </div>
+                              <div className="text-xs font-medium w-8 text-right">{count}</div>
+                            </div>
+                          );
+                        });
+                      })()}
+                    </div>
+                  </div>
                 </div>
               </div>
             )}

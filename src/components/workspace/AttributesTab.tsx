@@ -5,6 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
 import { Loader2, Plus, Trash2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
@@ -15,6 +16,8 @@ interface AttributesTabProps {
 }
 interface Attribute {
   name: string;
+  description?: string;
+  type?: "standard" | "included-not-included";
   levels: string[];
   isPriceAttribute?: boolean;
   currency?: string;
@@ -23,6 +26,8 @@ export const AttributesTab = ({ projectKey, onNavigate }: AttributesTabProps) =>
   const [attributes, setAttributes] = useState<Attribute[]>([
     {
       name: "Pricing",
+      description: "",
+      type: "standard",
       levels: ["", ""],
     },
   ]);
@@ -80,11 +85,36 @@ export const AttributesTab = ({ projectKey, onNavigate }: AttributesTabProps) =>
       ...attributes,
       {
         name: "",
+        description: "",
+        type: "standard",
         levels: ["", ""],
         isPriceAttribute: false,
         currency: "USD",
       },
     ]);
+  };
+
+  const updateAttributeDescription = (index: number, description: string) => {
+    const updated = [...attributes];
+    updated[index].description = description;
+    setAttributes(updated);
+  };
+
+  const updateAttributeType = (index: number, type: "standard" | "included-not-included") => {
+    const updated = [...attributes];
+    updated[index].type = type;
+    
+    // If switching to included/not-included, auto-populate levels
+    if (type === "included-not-included") {
+      updated[index].levels = ["Not Included", "Included"];
+    } else if (updated[index].levels.length === 2 && 
+               updated[index].levels[0] === "Not Included" && 
+               updated[index].levels[1] === "Included") {
+      // If switching away from included/not-included, reset to empty levels
+      updated[index].levels = ["", ""];
+    }
+    
+    setAttributes(updated);
   };
   const togglePriceAttribute = (index: number, checked: boolean) => {
     const updated = [...attributes];
@@ -175,6 +205,39 @@ export const AttributesTab = ({ projectKey, onNavigate }: AttributesTabProps) =>
                   <p className="mt-1 text-xs text-muted-foreground">Enter a descriptive name for this feature</p>
                 </div>
 
+                <div>
+                  <Label htmlFor={`attr-desc-${attrIndex}`}>Description (Optional)</Label>
+                  <Textarea
+                    id={`attr-desc-${attrIndex}`}
+                    placeholder="e.g., Additional context about this feature"
+                    value={attr.description || ""}
+                    onChange={(e) => updateAttributeDescription(attrIndex, e.target.value)}
+                    className="mt-1.5 min-h-[60px]"
+                  />
+                  <p className="mt-1 text-xs text-muted-foreground">This will appear in the survey table</p>
+                </div>
+
+                <div>
+                  <Label htmlFor={`attr-type-${attrIndex}`}>Attribute Type</Label>
+                  <Select
+                    value={attr.type || "standard"}
+                    onValueChange={(value) => updateAttributeType(attrIndex, value as "standard" | "included-not-included")}
+                  >
+                    <SelectTrigger id={`attr-type-${attrIndex}`} className="mt-1.5">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="standard">Standard</SelectItem>
+                      <SelectItem value="included-not-included">Included/Not-Included</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    {attr.type === "included-not-included" 
+                      ? "Levels auto-set to Not Included and Included" 
+                      : "Customize your own levels"}
+                  </p>
+                </div>
+
                 <div className="flex items-center gap-4 p-3 rounded-lg bg-muted/30">
                   <div className="flex items-center space-x-2">
                     <Checkbox
@@ -214,13 +277,16 @@ export const AttributesTab = ({ projectKey, onNavigate }: AttributesTabProps) =>
                 <div className="space-y-2">
                   <Label className="text-sm">Levels</Label>
                   <p className="text-xs text-muted-foreground mb-2">
-                    Define the different options for this attribute (minimum 2)
+                    {attr.type === "included-not-included" 
+                      ? "Levels automatically set for Included/Not-Included attributes"
+                      : "Define the different options for this attribute (minimum 2)"}
                   </p>
                   {attr.levels.map((level, levelIndex) => (
                     <div key={levelIndex} className="flex gap-2">
                       <Input
                         placeholder={attr.isPriceAttribute ? "e.g., 9.99" : `Level ${levelIndex + 1}`}
                         value={level}
+                        disabled={attr.type === "included-not-included"}
                         onChange={(e) => {
                           const value = e.target.value;
                           // If price attribute, only allow numbers and one decimal point with max 2 decimals
@@ -251,16 +317,18 @@ export const AttributesTab = ({ projectKey, onNavigate }: AttributesTabProps) =>
                         variant="ghost"
                         size="sm"
                         onClick={() => removeLevel(attrIndex, levelIndex)}
-                        disabled={attr.levels.length <= 2}
+                        disabled={attr.levels.length <= 2 || attr.type === "included-not-included"}
                       >
                         <Trash2 className="h-4 w-4" />
                       </Button>
                     </div>
                   ))}
-                  <Button variant="outline" size="sm" onClick={() => addLevel(attrIndex)}>
-                    <Plus className="mr-2 h-4 w-4" />
-                    Add Level
-                  </Button>
+                  {attr.type !== "included-not-included" && (
+                    <Button variant="outline" size="sm" onClick={() => addLevel(attrIndex)}>
+                      <Plus className="mr-2 h-4 w-4" />
+                      Add Level
+                    </Button>
+                  )}
                 </div>
               </div>
             </div>

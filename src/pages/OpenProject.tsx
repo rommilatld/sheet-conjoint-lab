@@ -15,6 +15,21 @@ const OpenProject = () => {
   const [error, setError] = useState("");
   const navigate = useNavigate();
 
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    try {
+      const text = await file.text();
+      // Extract project key from file (assumes key is the content or on a specific line)
+      const key = text.trim();
+      setProjectKey(key);
+      setError("");
+    } catch (err: any) {
+      setError("Failed to read file");
+    }
+  };
+
   const handleOpenProject = async () => {
     setError("");
     setLoading(true);
@@ -67,6 +82,29 @@ const OpenProject = () => {
               />
               <p className="mt-2 text-sm text-muted-foreground">
                 This is the key you saved when creating your project
+              </p>
+            </div>
+
+            <div className="relative">
+              <div className="absolute inset-0 flex items-center">
+                <span className="w-full border-t border-border" />
+              </div>
+              <div className="relative flex justify-center text-xs uppercase">
+                <span className="bg-background px-2 text-muted-foreground">Or</span>
+              </div>
+            </div>
+
+            <div>
+              <Label htmlFor="fileUpload" className="text-base">Upload Project File</Label>
+              <Input
+                id="fileUpload"
+                type="file"
+                accept=".txt"
+                onChange={handleFileUpload}
+                className="mt-2"
+              />
+              <p className="mt-2 text-sm text-muted-foreground">
+                Upload a .txt file containing your project key
               </p>
             </div>
 

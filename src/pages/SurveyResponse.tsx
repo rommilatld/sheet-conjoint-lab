@@ -2,12 +2,19 @@ import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Loader2, ChevronRight, CheckCircle } from "lucide-react";
+import { Loader2, ChevronRight, CheckCircle, Check, X } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Footer } from "@/components/Footer";
+
+interface Attribute {
+  name: string;
+  description?: string;
+  type?: "standard" | "included-not-included";
+  [key: string]: any;
+}
 
 interface Alternative {
   [key: string]: string;
@@ -31,11 +38,13 @@ const SurveyResponse = () => {
   
   const [surveyData, setSurveyData] = useState<any>(null);
   const [tasks, setTasks] = useState<Task[]>([]);
+  const [attributes, setAttributes] = useState<Attribute[]>([]);
   const [introduction, setIntroduction] = useState("");
   const [question, setQuestion] = useState("");
   const [currentTask, setCurrentTask] = useState(0);
   const [responses, setResponses] = useState<{ [taskId: number]: number }>({});
   const [selectedOption, setSelectedOption] = useState<number | null>(null);
+  const [donationAmount, setDonationAmount] = useState("");
 
   useEffect(() => {
     loadSurvey();
@@ -61,16 +70,59 @@ const SurveyResponse = () => {
         introLength: data.introduction?.length || 0,
         hasQuestion: !!data.question,
         question: data.question,
+        attributes: data.attributes,
       });
 
       setSurveyData(data);
       setTasks(data.tasks);
+      setAttributes(data.attributes || []);
       setIntroduction(data.introduction || "");
       setQuestion(data.question || "Which subscription plan would you prefer?");
     } catch (err: any) {
       setError(err.message);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleDonationSubmit = async () => {
+    const amount = parseFloat(donationAmount);
+    if (isNaN(amount) || amount <= 0) {
+      toast({
+        title: "Invalid Amount",
+        description: "Please enter a valid donation amount",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setSubmitting(true);
+    try {
+      const { error } = await supabase.functions.invoke('submit-survey-response', {
+        body: {
+          surveyToken: token,
+          type: "donation",
+          donationAmount: amount,
+        },
+      });
+
+      if (error) {
+        throw new Error(error.message || "Failed to submit donation");
+      }
+
+      setCompleted(true);
+      toast({
+        title: "Thank you!",
+        description: "Your donation preference has been recorded",
+      });
+    } catch (err: any) {
+      toast({
+        title: "Error",
+        description: err.message,
+        variant: "destructive",
+      });
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -110,6 +162,7 @@ const SurveyResponse = () => {
       const { error } = await supabase.functions.invoke('submit-survey-response', {
         body: {
           surveyToken: token,
+          type: "survey",
           responses: finalResponses,
         },
       });
@@ -173,7 +226,7 @@ const SurveyResponse = () => {
             </div>
             <h1 className="mb-4 text-3xl font-bold">Thank You!</h1>
             <p className="mb-6 text-lg text-muted-foreground">
-              Your responses have been recorded successfully.
+              Your response has been recorded successfully.
             </p>
             <p className="text-muted-foreground">
               You can close this window now.
@@ -186,11 +239,13 @@ const SurveyResponse = () => {
   }
 
   const currentTaskData = tasks[currentTask];
-  const attributeNames = Object.keys(currentTaskData.alternatives[0]);
+  const numOptions = currentTaskData.alternatives.filter(alt => 
+    !Object.values(alt).every(val => val === 'None of these')
+  ).length;
 
   return (
     <div className="min-h-screen flex flex-col">
-      <div className="container mx-auto max-w-4xl px-6 py-12">
+      <div className="container mx-auto max-w-6xl px-6 py-12">
         <div className="mb-8">
           <h1 className="mb-4 text-3xl font-bold">Research Survey</h1>
           {introduction && introduction.trim() && (
@@ -210,94 +265,142 @@ const SurveyResponse = () => {
                 {Math.round(((currentTask) / tasks.length) * 100)}% complete
               </div>
             </div>
-            <p className="text-base font-medium text-foreground mb-4">
+            <p className="text-base font-medium text-foreground mb-6">
               {question || "Which subscription plan would you prefer?"}
             </p>
           </div>
 
           {taskTransitioning ? (
             <div className="space-y-4 animate-fade-in">
-              {[0, 1].map((idx) => (
-                <div
-                  key={idx}
-                  className="rounded-lg border-2 border-border p-6 animate-pulse"
-                >
-                  <div className="flex items-start gap-4">
-                    <div className="mt-1 h-5 w-5 rounded-full bg-muted" />
-                    <div className="flex-1">
-                      <div className="h-6 w-24 bg-muted rounded mb-3" />
-                      <div className="space-y-2">
-                        <div className="h-4 w-3/4 bg-muted rounded" />
-                        <div className="h-4 w-2/3 bg-muted rounded" />
-                        <div className="h-4 w-5/6 bg-muted rounded" />
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              ))}
+              <div className="rounded-lg border p-4 animate-pulse">
+                <div className="h-48 bg-muted rounded" />
+              </div>
               <div className="text-center text-sm text-muted-foreground py-4">
                 <Loader2 className="h-5 w-5 animate-spin mx-auto mb-2" />
                 Loading next question...
               </div>
             </div>
           ) : (
-          <RadioGroup
-            key={`task-${currentTask}`}
-            value={selectedOption?.toString()}
-            onValueChange={(val) => setSelectedOption(parseInt(val))}
-            className="space-y-4 animate-fade-in"
-          >
-            {currentTaskData.alternatives.map((alternative, idx) => {
-              const isNoneOption = Object.values(alternative).every(val => val === 'None of these');
-              
-              return (
-                <div
-                  key={idx}
-                  className={`rounded-lg border-2 p-6 transition-all cursor-pointer animate-scale-in ${
-                    selectedOption === idx
-                      ? "border-primary bg-primary/5"
-                      : "border-border hover:border-primary/50"
-                  } ${isNoneOption ? 'bg-muted/30' : ''}`}
-                  style={{ animationDelay: `${idx * 50}ms` }}
-                  onClick={() => setSelectedOption(idx)}
-                >
-                  <div className="flex items-start gap-4">
-                    <RadioGroupItem
-                      value={idx.toString()}
-                      id={`option-${idx}`}
-                      className="mt-1"
-                    />
-                    <Label
-                      htmlFor={`option-${idx}`}
-                      className="flex-1 cursor-pointer"
+            <>
+              {/* Table Layout */}
+              <div className="overflow-x-auto mb-6">
+                <table className="w-full border-collapse">
+                  <thead>
+                    <tr className="border-b-2 border-border">
+                      <th className="text-left p-3 font-semibold">Feature</th>
+                      <th className="text-left p-3 font-semibold">Description</th>
+                      {Array.from({ length: numOptions }, (_, i) => (
+                        <th key={i} className="text-center p-3 font-semibold">
+                          Option {String.fromCharCode(65 + i)}
+                        </th>
+                      ))}
+                      <th className="text-center p-3 font-semibold">None</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {attributes.map((attr, attrIdx) => {
+                      const isIncludedType = attr.type === "included-not-included";
+                      
+                      return (
+                        <tr key={attrIdx} className={`border-b border-border ${attrIdx % 2 === 0 ? 'bg-muted/20' : ''}`}>
+                          <td className="p-3 font-medium">{attr.name}</td>
+                          <td className="p-3 text-sm text-muted-foreground">{attr.description || ""}</td>
+                          {currentTaskData.alternatives.slice(0, numOptions).map((alt, altIdx) => {
+                            const value = alt[attr.name];
+                            const isIncluded = value === "Included";
+                            const isNotIncluded = value === "Not Included";
+                            
+                            return (
+                              <td key={altIdx} className="p-3 text-center">
+                                {isIncludedType ? (
+                                  isIncluded ? (
+                                    <Check className="h-5 w-5 text-green-600 mx-auto" />
+                                  ) : isNotIncluded ? (
+                                    <X className="h-5 w-5 text-red-600 mx-auto" />
+                                  ) : (
+                                    <span className="text-sm">{value}</span>
+                                  )
+                                ) : (
+                                  <span className="text-sm">{value}</span>
+                                )}
+                              </td>
+                            );
+                          })}
+                          <td className="p-3 text-center text-muted-foreground text-sm">-</td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* Selection Buttons */}
+              <div className="mb-6">
+                <Label className="text-base font-semibold mb-3 block">Select your choice:</Label>
+                <div className="flex flex-wrap gap-3">
+                  {Array.from({ length: numOptions }, (_, i) => (
+                    <Button
+                      key={i}
+                      variant={selectedOption === i ? "default" : "outline"}
+                      className={`flex-1 min-w-[120px] ${selectedOption === i ? 'gradient-primary' : ''}`}
+                      onClick={() => setSelectedOption(i)}
                     >
-                      {isNoneOption ? (
-                        <div className="font-semibold text-lg text-muted-foreground">
-                          None of these options
-                        </div>
-                      ) : (
-                        <>
-                          <div className="font-semibold mb-3 text-lg">
-                            Option {String.fromCharCode(65 + idx)}
-                          </div>
-                          <div className="space-y-2">
-                            {attributeNames.map((attr) => (
-                              <div key={attr} className="flex items-center gap-2">
-                                <span className="font-medium text-sm">{attr}:</span>
-                                <span className="text-muted-foreground">
-                                  {alternative[attr]}
-                                </span>
-                              </div>
-                            ))}
-                          </div>
-                        </>
-                      )}
-                    </Label>
-                  </div>
+                      Option {String.fromCharCode(65 + i)}
+                    </Button>
+                  ))}
+                  <Button
+                    variant={selectedOption === numOptions ? "default" : "outline"}
+                    className={`flex-1 min-w-[120px] ${selectedOption === numOptions ? 'gradient-primary' : ''}`}
+                    onClick={() => setSelectedOption(numOptions)}
+                  >
+                    None of these
+                  </Button>
                 </div>
-              );
-            })}
-          </RadioGroup>
+              </div>
+
+              {/* Donation Input */}
+              <div className="border-t-2 border-border pt-6 mt-8">
+                <div className="bg-muted/30 rounded-lg p-6">
+                  <Label htmlFor="donation" className="text-base font-semibold mb-3 block">
+                    I'd rather donate this amount
+                  </Label>
+                  <div className="flex gap-3 items-end">
+                    <div className="flex-1 max-w-xs">
+                      <div className="relative">
+                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">$</span>
+                        <Input
+                          id="donation"
+                          type="number"
+                          step="0.01"
+                          min="0"
+                          placeholder="0.00"
+                          value={donationAmount}
+                          onChange={(e) => setDonationAmount(e.target.value)}
+                          className="pl-7"
+                        />
+                      </div>
+                    </div>
+                    <Button
+                      onClick={handleDonationSubmit}
+                      disabled={!donationAmount || submitting}
+                      variant="outline"
+                    >
+                      {submitting ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          Submitting...
+                        </>
+                      ) : (
+                        "Submit Donation"
+                      )}
+                    </Button>
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-2">
+                    Submitting a donation will end the survey immediately
+                  </p>
+                </div>
+              </div>
+            </>
           )}
 
           <div className="mt-8 flex items-center justify-between">
