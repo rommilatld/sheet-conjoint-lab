@@ -6,23 +6,31 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-// UNICODE ICON MAP — stable, non-emoji, universally supported
+// SAFE HTML ENCODED SYMBOLS WITH COLORS
+// ✔ (green)   = <span style="color:green">&#10004;</span>
+// ✘ (red)     = <span style="color:red">&#10008;</span>
+// — (gray)    = <span style="color:gray">&#8212;</span>
+// ∞ (black)   = &#8734;
+// ★ (gold)    = <span style="color:gold">&#9733;</span>
+// • (gray)    = <span style="color:gray">&#8226;</span>
+
 const ICON_MAP: Record<string, string> = {
-  included: "✔",
-  "not included": "✘",
-  "none of these": "—",
-  unlimited: "∞",
-  premium: "★",
-  basic: "•",
+  "included": "&lt;span style='color:green'>&#10004;&lt;/span>",
+  "not included": "&lt;span style='color:red'>&#10008;&lt;/span>",
+  "none of these": "&lt;span style='color:gray'>&#8212;&lt;/span>",
+  "unlimited": "&#8734;",
+  "premium": "&lt;span style='color:gold'>&#9733;&lt;/span>",
+  "basic": "&lt;span style='color:gray'>&#8226;&lt;/span>",
 };
 
-// Case-insensitive icon transformer
+// Case-insensitive HTML-entity transformer
 function mapLevelToIcon(level: string): string {
   if (!level) return level;
   const key = level.trim().toLowerCase();
-  return ICON_MAP[key] || level; // fallback to raw text
+  return ICON_MAP[key] || level;
 }
 
+// Decrypt token
 async function decryptSurveyToken(token: string): Promise<{ sheetId: string; surveyId: string }> {
   const encryptionSecret = Deno.env.get("ENCRYPTION_SECRET");
   if (!encryptionSecret) throw new Error("Missing encryption secret");
@@ -50,15 +58,21 @@ async function decryptSurveyToken(token: string): Promise<{ sheetId: string; sur
   }
 }
 
-// CALCULATE OPTIMAL TASK COUNT (LIMIT 3–5)
+// ★ LIMIT TO MAX 5 TASKS, BUT ALLOW FEWER IF ATTRIBUTE COMPLEXITY IS LOW
 function calculateOptimalTaskCount(attributes: any[]): number {
   const attributeCount = attributes.length;
-  const avgLevels = attributes.reduce((sum, attr) => sum + attr.levels.length, 0) / attributeCount;
+  const avgLevels =
+    attributes.reduce((sum, attr) => sum + attr.levels.length, 0) /
+    attributeCount;
 
   let optimalTasks = Math.round(attributeCount * avgLevels * 0.8);
-  optimalTasks = Math.max(3, Math.min(5, optimalTasks));
 
-  console.log(`Calculated ${optimalTasks} tasks for ${attributeCount} attributes (avg levels ${avgLevels.toFixed(1)})`);
+  // ENFORCE MAX 5
+  optimalTasks = Math.min(5, optimalTasks);
+
+  // ENFORCE MIN 1
+  optimalTasks = Math.max(1, optimalTasks);
+
   return optimalTasks;
 }
 
@@ -78,18 +92,21 @@ function generateRandomTasks(attributes: any[], numTasks: number, numAlternative
       do {
         alternative = {};
         attributes.forEach((attr) => {
-          const randomLevel = attr.levels[Math.floor(Math.random() * attr.levels.length)];
+          const randomLevel =
+            attr.levels[Math.floor(Math.random() * attr.levels.length)];
 
-          // apply unicode icon mapping
           alternative[attr.name] = mapLevelToIcon(randomLevel);
         });
         attempts++;
-      } while (attempts < 50 && alternatives.some((existing) => areAlternativesEqual(existing, alternative)));
+      } while (
+        attempts < 50 &&
+        alternatives.some((existing) => areAlternativesEqual(existing, alternative))
+      );
 
       alternatives.push(alternative);
     }
 
-    // "None of these" always icon-mapped
+    // Add "None of these"
     const noneAlternative: any = {};
     attributes.forEach((attr) => {
       noneAlternative[attr.name] = mapLevelToIcon("None of these");
@@ -103,17 +120,18 @@ function generateRandomTasks(attributes: any[], numTasks: number, numAlternative
 }
 
 Deno.serve(async (req) => {
-  if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
+  if (req.method === "OPTIONS")
+    return new Response(null, { headers: corsHeaders });
 
   try {
     const { surveyToken } = await req.json();
     const { sheetId, surveyId } = await decryptSurveyToken(surveyToken);
     const token = await getGoogleSheetsToken();
 
-    // Load survey metadata
+    // Survey metadata
     const surveyMetaResponse = await fetch(
       `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/Surveys!A:F`,
-      { headers: { Authorization: `Bearer ${token}` } },
+      { headers: { Authorization: `Bearer ${token}` } }
     );
 
     let introduction = "";
@@ -130,12 +148,14 @@ Deno.serve(async (req) => {
       }
     }
 
-    // Load attributes from Google Sheets
-    const response = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/Attributes!A:B`, {
-      headers: { Authorization: `Bearer ${token}` },
-    });
+    // Load attributes
+    const response = await fetch(
+      `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/Attributes!A:B`,
+      { headers: { Authorization: `Bearer ${token}` } }
+    );
 
-    if (!response.ok) throw new Error("Failed to read attributes from Google Sheets");
+    if (!response.ok)
+      throw new Error("Failed to read attributes from Google Sheets");
 
     const data = await response.json();
     const rows = data.values || [];
@@ -149,37 +169,50 @@ Deno.serve(async (req) => {
       }
     }
 
-    // attributes mapped ONCE here (levels already unicode)
-    const attributes = Array.from(attributesMap.entries()).map(([name, levels]) => ({
-      name,
-      levels: levels.map((l: string) => mapLevelToIcon(l)),
-    }));
+    const attributes = Array.from(attributesMap.entries()).map(
+      ([name, levels]) => ({
+        name,
+        levels: levels.map((l: string) => mapLevelToIcon(l)),
+      })
+    );
 
-    if (attributes.length === 0) throw new Error("No attributes found for this survey");
+    if (attributes.length === 0)
+      throw new Error("No attributes found for this survey");
 
-    // Generate tasks
+    // Task count (MAX 5, MIN 1)
     const optimalTaskCount = calculateOptimalTaskCount(attributes);
+
     const tasks = generateRandomTasks(attributes, optimalTaskCount, 3);
 
-    // Save design sheet if needed
+    // Create design sheet if needed
     try {
-      await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${sheetId}:batchUpdate`, {
-        method: "POST",
-        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
-        body: JSON.stringify({ requests: [{ addSheet: { properties: { title: "Design" } } }] }),
-      });
+      await fetch(
+        `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}:batchUpdate`,
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json`,
+          },
+          body: JSON.stringify({
+            requests: [{ addSheet: { properties: { title: "Design" } } }],
+          }),
+        }
+      );
     } catch (e) {}
 
     const existingDesignResponse = await fetch(
       `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/Design!A:A`,
-      { headers: { Authorization: `Bearer ${token}` } },
+      { headers: { Authorization: `Bearer ${token}` } }
     );
 
     let designExists = false;
     if (existingDesignResponse.ok) {
       const existingData = await existingDesignResponse.json();
       const existingRows = existingData.values || [];
-      designExists = existingRows.some((row: string[]) => row[0] && row[0].startsWith(`${surveyId}_`));
+      designExists = existingRows.some(
+        (row: string[]) => row[0] && row[0].startsWith(`${surveyId}_`)
+      );
     }
 
     if (!designExists) {
@@ -202,16 +235,22 @@ Deno.serve(async (req) => {
         `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/Design!A:Z:append?valueInputOption=RAW`,
         {
           method: "POST",
-          headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json`,
+          },
           body: JSON.stringify({ values: designRows }),
-        },
+        }
       );
     }
 
-    return new Response(JSON.stringify({ surveyId, tasks, attributes, introduction, question }), {
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-      status: 200,
-    });
+    return new Response(
+      JSON.stringify({ surveyId, tasks, attributes, introduction, question }),
+      {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 200,
+      }
+    );
   } catch (error) {
     console.error("Error loading survey:", error);
     const errorMessage = error instanceof Error ? error.message : "Unknown error";
