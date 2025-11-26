@@ -1,16 +1,17 @@
 import { useState, useEffect } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { ChevronRight, ChevronLeft, Save, Loader2 } from "lucide-react";
+import { ChevronRight, ChevronLeft, Save, Loader2, Check, X } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 
 interface Attribute {
   name: string;
+  description?: string;
+  type?: "standard" | "included-not-included";
   levels: string[];
 }
 
@@ -156,6 +157,7 @@ export const SurveyPreview = ({ attributes, projectKey }: SurveyPreviewProps) =>
   });
 
   const currentAlternatives = tasks[currentTask];
+  const numOptions = currentAlternatives.length - 1; // Exclude None
 
   const handleNext = () => {
     if (currentTask < tasks.length - 1) {
@@ -313,52 +315,116 @@ export const SurveyPreview = ({ attributes, projectKey }: SurveyPreviewProps) =>
             </h3>
             <div className="text-sm text-muted-foreground">Preview Mode</div>
           </div>
-          <p className="text-base font-medium text-foreground mb-4">
+          <p className="text-base font-medium text-foreground mb-6">
             {question || "Which subscription plan would you prefer?"}
           </p>
         </div>
 
-        <RadioGroup
-          value={selectedOption?.toString()}
-          onValueChange={(val) => setSelectedOption(parseInt(val))}
-          className="space-y-4"
-        >
-          {currentAlternatives.map((alternative, idx) => {
-            const isNoneOption = Object.values(alternative).every(val => val === 'None of these');
-            
-            return (
-              <div
-                key={idx}
-                className={`rounded-lg border-2 p-6 transition-all ${
-                  selectedOption === idx ? "border-primary bg-primary/5" : "border-border hover:border-primary/50"
-                } ${isNoneOption ? 'bg-muted/30' : ''}`}
+        {/* Table Preview */}
+        <div className="overflow-x-auto mb-6">
+          <table className="w-full border-collapse">
+            <thead>
+              <tr className="border-b-2 border-border">
+                <th className="text-left p-3 font-semibold">Feature</th>
+                <th className="text-left p-3 font-semibold">Description</th>
+                {Array.from({ length: numOptions }, (_, i) => (
+                  <th key={i} className="text-center p-3 font-semibold">
+                    Option {String.fromCharCode(65 + i)}
+                  </th>
+                ))}
+                <th className="text-center p-3 font-semibold">None</th>
+              </tr>
+            </thead>
+            <tbody>
+              {attributes.map((attr, attrIdx) => {
+                const isIncludedType = attr.type === "included-not-included";
+                
+                return (
+                  <tr key={attrIdx} className={`border-b border-border ${attrIdx % 2 === 0 ? 'bg-muted/20' : ''}`}>
+                    <td className="p-3 font-medium">{attr.name}</td>
+                    <td className="p-3 text-sm text-muted-foreground">{attr.description || ""}</td>
+                    {currentAlternatives.slice(0, numOptions).map((alt, altIdx) => {
+                      const value = alt[attr.name];
+                      const isIncluded = value === "Included";
+                      const isNotIncluded = value === "Not Included";
+                      
+                      return (
+                        <td key={altIdx} className="p-3 text-center">
+                          {isIncludedType ? (
+                            isIncluded ? (
+                              <Check className="h-5 w-5 text-green-600 mx-auto" />
+                            ) : isNotIncluded ? (
+                              <X className="h-5 w-5 text-red-600 mx-auto" />
+                            ) : (
+                              <span className="text-sm">{value}</span>
+                            )
+                          ) : (
+                            <span className="text-sm">{value}</span>
+                          )}
+                        </td>
+                      );
+                    })}
+                    <td className="p-3 text-center text-muted-foreground text-sm">-</td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+
+        {/* Selection Buttons Preview */}
+        <div className="mb-6">
+          <Label className="text-base font-semibold mb-3 block">Select your choice:</Label>
+          <div className="flex flex-wrap gap-3">
+            {Array.from({ length: numOptions }, (_, i) => (
+              <Button
+                key={i}
+                variant={selectedOption === i ? "default" : "outline"}
+                className={`flex-1 min-w-[120px] ${selectedOption === i ? 'gradient-primary' : ''}`}
+                onClick={() => setSelectedOption(i)}
               >
-                <div className="flex items-start gap-4">
-                  <RadioGroupItem value={idx.toString()} id={`option-${idx}`} className="mt-1" />
-                  <Label htmlFor={`option-${idx}`} className="flex-1 cursor-pointer">
-                    {isNoneOption ? (
-                      <div className="font-semibold text-lg text-muted-foreground">
-                        None of these options
-                      </div>
-                    ) : (
-                      <>
-                        <div className="font-semibold mb-3 text-lg">Option {String.fromCharCode(65 + idx)}</div>
-                        <div className="space-y-2">
-                          {attributes.map((attr) => (
-                            <div key={attr.name} className="flex items-center gap-2">
-                              <span className="font-medium text-sm">{attr.name}:</span>
-                              <span className="text-muted-foreground">{alternative[attr.name]}</span>
-                            </div>
-                          ))}
-                        </div>
-                      </>
-                    )}
-                  </Label>
+                Option {String.fromCharCode(65 + i)}
+              </Button>
+            ))}
+            <Button
+              variant={selectedOption === numOptions ? "default" : "outline"}
+              className={`flex-1 min-w-[120px] ${selectedOption === numOptions ? 'gradient-primary' : ''}`}
+              onClick={() => setSelectedOption(numOptions)}
+            >
+              None of these
+            </Button>
+          </div>
+        </div>
+
+        {/* Donation Input Preview */}
+        <div className="border-t-2 border-border pt-6 mt-8">
+          <div className="bg-muted/30 rounded-lg p-6">
+            <Label className="text-base font-semibold mb-3 block">
+              I'd rather donate this amount
+            </Label>
+            <div className="flex gap-3 items-end">
+              <div className="flex-1 max-w-xs">
+                <div className="relative">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">$</span>
+                  <Input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    placeholder="0.00"
+                    className="pl-7"
+                    disabled
+                  />
                 </div>
               </div>
-            );
-          })}
-        </RadioGroup>
+              <Button variant="outline" disabled>
+                Submit Donation
+              </Button>
+            </div>
+            <p className="text-xs text-muted-foreground mt-2">
+              Submitting a donation will end the survey immediately
+            </p>
+          </div>
+        </div>
 
         <div className="mt-8 flex items-center justify-between">
           <Button variant="outline" onClick={handlePrevious} disabled={currentTask === 0}>
@@ -374,7 +440,7 @@ export const SurveyPreview = ({ attributes, projectKey }: SurveyPreviewProps) =>
 
           <Button
             onClick={handleNext}
-            disabled={currentTask === tasks.length - 1 || selectedOption === null}
+            disabled={currentTask === tasks.length - 1}
             className="gradient-primary"
           >
             Next

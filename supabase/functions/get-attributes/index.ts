@@ -24,7 +24,7 @@ Deno.serve(async (req) => {
       const token = await getGoogleSheetsToken();
 
       const response = await fetch(
-        `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/Attributes!A:D`,
+        `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/Attributes!A:F`,
         {
           headers: {
             Authorization: `Bearer ${token}`,
@@ -47,31 +47,33 @@ Deno.serve(async (req) => {
 
       // Parse attributes from rows
       const attributesMap = new Map();
-      const priceInfo = new Map();
+      const metadataMap = new Map();
       for (let i = 1; i < rows.length; i++) {
-        const [name, level, isPriceAttr, currency] = rows[i];
+        const [name, level, isPriceAttr, currency, description, type] = rows[i];
         if (name && level) {
           if (!attributesMap.has(name)) {
             attributesMap.set(name, []);
-            // Store price info only once per attribute (from first row)
-            if (isPriceAttr) {
-              priceInfo.set(name, {
-                isPriceAttribute: isPriceAttr === 'TRUE',
-                currency: currency || 'USD'
-              });
-            }
+            // Store metadata only once per attribute (from first row)
+            metadataMap.set(name, {
+              isPriceAttribute: isPriceAttr === 'TRUE',
+              currency: currency || 'USD',
+              description: description || '',
+              type: type || 'standard'
+            });
           }
           attributesMap.get(name).push(level);
         }
       }
 
       const attributes = Array.from(attributesMap.entries()).map(([name, levels]) => {
-        const info = priceInfo.get(name) || {};
+        const metadata = metadataMap.get(name) || {};
         return {
           name,
           levels,
-          isPriceAttribute: info.isPriceAttribute || false,
-          currency: info.currency || 'USD'
+          isPriceAttribute: metadata.isPriceAttribute || false,
+          currency: metadata.currency || 'USD',
+          description: metadata.description || '',
+          type: metadata.type || 'standard'
         };
       });
 

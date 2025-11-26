@@ -575,6 +575,44 @@ Deno.serve(async (req) => {
       throw new Error('No valid design data found. Cannot calculate utilities without task design information.');
     }
     
+    // Fetch donation data
+    let donationData: { average: number; count: number; amounts: number[] } | null = null;
+    try {
+      const donateResponse = await fetch(
+        `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/Donate!A:E`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+      
+      if (donateResponse.ok) {
+        const donateDataRaw = await donateResponse.json();
+        const donateRows = donateDataRaw.values || [];
+        
+        if (donateRows.length > 1) {
+          // Parse donation amounts (skip header)
+          const amounts = donateRows.slice(1)
+            .map((row: string[]) => parseFloat(row[2]))
+            .filter((amount: number) => !isNaN(amount) && amount > 0);
+          
+          if (amounts.length > 0) {
+            const sum = amounts.reduce((a: number, b: number) => a + b, 0);
+            const average = sum / amounts.length;
+            donationData = {
+              average,
+              count: amounts.length,
+              amounts
+            };
+            console.log(`Found ${amounts.length} donation responses with average $${average.toFixed(2)}`);
+          }
+        }
+      }
+    } catch (donateError) {
+      console.log('No donation data found or error reading Donate tab:', donateError);
+    }
+    
     // Run analysis with design data
     const results = runConjointAnalysis(responses, attributes, designMap, numPlans, pricingStrategy, goal);
     
@@ -650,6 +688,16 @@ Deno.serve(async (req) => {
       });
     }
     
+    // Add donation statistics if available
+    if (donationData && donationData.count > 0) {
+      analysisRows.push(
+        [''],
+        ['Donation Statistics'],
+        ['Total Donations:', donationData.count.toString()],
+        ['Average Donation:', `$${donationData.average.toFixed(2)}`],
+      );
+    }
+    
     await fetch(
       `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/${analysisTabName}!A1?valueInputOption=RAW`,
       {
@@ -677,6 +725,7 @@ Deno.serve(async (req) => {
           plans: results.plans,
           currency: results.currency,
           priceMismatchWarning: results.priceMismatchWarning,
+          donationData,
         },
       }),
       {
