@@ -7,13 +7,6 @@ const corsHeaders = {
 };
 
 // SAFE HTML ENCODED SYMBOLS WITH COLORS
-// ✔ (green)   = <span style="color:green">&#10004;</span>
-// ✘ (red)     = <span style="color:red">&#10008;</span>
-// — (gray)    = <span style="color:gray">&#8212;</span>
-// ∞ (black)   = &#8734;
-// ★ (gold)    = <span style="color:gold">&#9733;</span>
-// • (gray)    = <span style="color:gray">&#8226;</span>
-
 const ICON_MAP: Record<string, string> = {
   "included": "&lt;span style='color:green'>&#10004;&lt;/span>",
   "not included": "&lt;span style='color:red'>&#10008;&lt;/span>",
@@ -61,9 +54,7 @@ async function decryptSurveyToken(token: string): Promise<{ sheetId: string; sur
 // ★ LIMIT TO MAX 5 TASKS, BUT ALLOW FEWER IF ATTRIBUTE COMPLEXITY IS LOW
 function calculateOptimalTaskCount(attributes: any[]): number {
   const attributeCount = attributes.length;
-  const avgLevels =
-    attributes.reduce((sum, attr) => sum + attr.levels.length, 0) /
-    attributeCount;
+  const avgLevels = attributes.reduce((sum, attr) => sum + attr.levels.length, 0) / attributeCount;
 
   let optimalTasks = Math.round(attributeCount * avgLevels * 0.8);
 
@@ -92,9 +83,7 @@ function generateRandomTasks(attributes: any[], numTasks: number, numAlternative
       do {
         alternative = {};
         attributes.forEach((attr) => {
-          const randomLevel =
-            attr.levels[Math.floor(Math.random() * attr.levels.length)];
-
+          const randomLevel = attr.levels[Math.floor(Math.random() * attr.levels.length)];
           alternative[attr.name] = mapLevelToIcon(randomLevel);
         });
         attempts++;
@@ -179,8 +168,10 @@ Deno.serve(async (req) => {
     if (attributes.length === 0)
       throw new Error("No attributes found for this survey");
 
-    // Task count (MAX 5, MIN 1)
-    const optimalTaskCount = calculateOptimalTaskCount(attributes);
+    // ----------------------------------------
+    // ⭐ ENFORCE MAX 5 TASKS HERE
+    // ----------------------------------------
+    const optimalTaskCount = Math.min(5, calculateOptimalTaskCount(attributes));
 
     const tasks = generateRandomTasks(attributes, optimalTaskCount, 3);
 
@@ -237,7 +228,7 @@ Deno.serve(async (req) => {
           method: "POST",
           headers: {
             Authorization: `Bearer ${token}`,
-            "Content-Type": "application/json`,
+            "Content-Type": "application/json",
           },
           body: JSON.stringify({ values: designRows }),
         }

@@ -46,6 +46,34 @@ const SurveyResponse = () => {
   const [selectedOption, setSelectedOption] = useState<number | null>(null);
   const [donationAmount, setDonationAmount] = useState("");
 
+  // --------------------------------------------------------
+  // NEW: colored checkmark / X renderer
+  // --------------------------------------------------------
+  function renderColored(value: string) {
+    if (!value) return <span />;
+
+    const normalized = value.toLowerCase().trim();
+
+    if (normalized === "included" || normalized === "✓") {
+      return (
+        <span className="flex items-center justify-center gap-1 text-green-600 font-semibold">
+          <Check className="h-5 w-5 text-green-600" />
+        </span>
+      );
+    }
+
+    if (normalized === "not included" || normalized === "✕") {
+      return (
+        <span className="flex items-center justify-center gap-1 text-red-600 font-semibold">
+          <X className="h-5 w-5 text-red-600" />
+        </span>
+      );
+    }
+
+    return <span className="text-sm">{value}</span>;
+  }
+  // --------------------------------------------------------
+
   useEffect(() => {
     loadSurvey();
   }, [token]);
@@ -57,21 +85,9 @@ const SurveyResponse = () => {
         body: { surveyToken: token },
       });
 
-      if (error) {
-        throw new Error(error.message || "Failed to load survey");
-      }
+      if (error) throw new Error(error.message || "Failed to load survey");
 
-      if (!data || !data.tasks) {
-        throw new Error("Invalid survey data");
-      }
-
-      console.log("Survey data loaded:", {
-        hasIntroduction: !!data.introduction,
-        introLength: data.introduction?.length || 0,
-        hasQuestion: !!data.question,
-        question: data.question,
-        attributes: data.attributes,
-      });
+      if (!data || !data.tasks) throw new Error("Invalid survey data");
 
       setSurveyData(data);
       setTasks(data.tasks);
@@ -106,9 +122,7 @@ const SurveyResponse = () => {
         },
       });
 
-      if (error) {
-        throw new Error(error.message || "Failed to submit donation");
-      }
+      if (error) throw new Error(error.message || "Failed to submit donation");
 
       setCompleted(true);
       toast({
@@ -129,18 +143,15 @@ const SurveyResponse = () => {
   const handleNext = () => {
     if (selectedOption === null) return;
 
-    // Save response
     setResponses({
       ...responses,
       [currentTask]: selectedOption,
     });
 
     if (currentTask < tasks.length - 1) {
-      // Show loading animation
       setTaskTransitioning(true);
       setSelectedOption(null);
 
-      // Wait 600ms before showing next task
       setTimeout(() => {
         setCurrentTask(currentTask + 1);
         setTaskTransitioning(false);
@@ -153,7 +164,6 @@ const SurveyResponse = () => {
   const submitSurvey = async () => {
     setSubmitting(true);
     try {
-      // Include the last selected option
       const finalResponses = {
         ...responses,
         [currentTask]: selectedOption,
@@ -167,9 +177,7 @@ const SurveyResponse = () => {
         },
       });
 
-      if (error) {
-        throw new Error(error.message || "Failed to submit responses");
-      }
+      if (error) throw new Error(error.message || "Failed to submit responses");
 
       setCompleted(true);
       toast({
@@ -240,6 +248,7 @@ const SurveyResponse = () => {
       <div className="container mx-auto max-w-6xl px-6 py-12">
         <div className="mb-8">
           <h1 className="mb-4 text-3xl font-bold">Research Survey</h1>
+
           {introduction && introduction.trim() && (
             <div className="mb-6 text-base text-muted-foreground whitespace-pre-line leading-relaxed">
               {introduction}
@@ -257,9 +266,8 @@ const SurveyResponse = () => {
                 {Math.round((currentTask / tasks.length) * 100)}% complete
               </div>
             </div>
-            <p className="text-base font-medium text-foreground mb-6">
-              {question || "Which subscription plan would you prefer?"}
-            </p>
+
+            <p className="text-base font-medium text-foreground mb-6">{question}</p>
           </div>
 
           {taskTransitioning ? (
@@ -274,7 +282,7 @@ const SurveyResponse = () => {
             </div>
           ) : (
             <>
-              {/* Table Layout */}
+              {/* ---- TABLE LAYOUT ---- */}
               <div className="overflow-x-auto mb-6">
                 <table className="w-full border-collapse">
                   <thead>
@@ -289,47 +297,30 @@ const SurveyResponse = () => {
                       <th className="text-center p-3 font-semibold">None</th>
                     </tr>
                   </thead>
+
                   <tbody>
-                    {attributes.map((attr, attrIdx) => {
-                      const isIncludedType = attr.type === "included-not-included";
+                    {attributes.map((attr, attrIdx) => (
+                      <tr key={attrIdx} className={`border-b border-border ${attrIdx % 2 === 0 ? "bg-muted/20" : ""}`}>
+                        <td className="p-3 font-medium">{attr.name}</td>
+                        <td className="p-3 text-sm text-muted-foreground">{attr.description || ""}</td>
 
-                      return (
-                        <tr
-                          key={attrIdx}
-                          className={`border-b border-border ${attrIdx % 2 === 0 ? "bg-muted/20" : ""}`}
-                        >
-                          <td className="p-3 font-medium">{attr.name}</td>
-                          <td className="p-3 text-sm text-muted-foreground">{attr.description || ""}</td>
-                          {currentTaskData.alternatives.slice(0, numOptions).map((alt, altIdx) => {
-                            const value = alt[attr.name];
-                            const isIncluded = value === "Included";
-                            const isNotIncluded = value === "Not Included";
+                        {currentTaskData.alternatives.slice(0, numOptions).map((alt, altIdx) => {
+                          const value = alt[attr.name];
+                          return (
+                            <td key={altIdx} className="p-3 text-center">
+                              {renderColored(value)}
+                            </td>
+                          );
+                        })}
 
-                            return (
-                              <td key={altIdx} className="p-3 text-center">
-                                {isIncludedType ? (
-                                  isIncluded ? (
-                                    <Check className="h-5 w-5 text-green-600 mx-auto" />
-                                  ) : isNotIncluded ? (
-                                    <X className="h-5 w-5 text-red-600 mx-auto" />
-                                  ) : (
-                                    <span className="text-sm">{value}</span>
-                                  )
-                                ) : (
-                                  <span className="text-sm">{value}</span>
-                                )}
-                              </td>
-                            );
-                          })}
-                          <td className="p-3 text-center text-muted-foreground text-sm">-</td>
-                        </tr>
-                      );
-                    })}
+                        <td className="p-3 text-center text-muted-foreground text-sm">-</td>
+                      </tr>
+                    ))}
                   </tbody>
                 </table>
               </div>
 
-              {/* Selection Buttons */}
+              {/* ---- SELECTION BUTTONS ---- */}
               <div className="mb-6">
                 <Label className="text-base font-semibold mb-3 block">Select your choice:</Label>
                 <div className="flex flex-wrap gap-3">
@@ -353,12 +344,13 @@ const SurveyResponse = () => {
                 </div>
               </div>
 
-              {/* Donation Input */}
+              {/* ---- DONATION SECTION ---- */}
               <div className="border-t-2 border-border pt-6 mt-8">
                 <div className="bg-muted/30 rounded-lg p-6">
                   <Label htmlFor="donation" className="text-base font-semibold mb-3 block">
                     Instead of subscribing, I'd rather donate this amount
                   </Label>
+
                   <div className="flex gap-3 items-end">
                     <div className="flex-1 max-w-xs">
                       <div className="relative">
@@ -375,6 +367,7 @@ const SurveyResponse = () => {
                         />
                       </div>
                     </div>
+
                     <Button onClick={handleDonationSubmit} disabled={!donationAmount || submitting} variant="outline">
                       {submitting ? (
                         <>
@@ -386,6 +379,7 @@ const SurveyResponse = () => {
                       )}
                     </Button>
                   </div>
+
                   <p className="text-xs text-muted-foreground mt-2">
                     Submitting a donation suggestion will end the survey immediately
                   </p>
@@ -441,6 +435,7 @@ const SurveyResponse = () => {
           </a>
         </div>
       </div>
+
       <Footer />
     </div>
   );

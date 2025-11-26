@@ -33,14 +33,35 @@ export const SurveyPreview = ({ attributes, projectKey }: SurveyPreviewProps) =>
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
 
-  // Calculate recommended sample sizes based on study complexity
+  // Convert a level into a colored UI element
+  function renderColored(value: string) {
+    if (!value) return <span />;
+
+    const normalized = value.toLowerCase().trim();
+
+    if (normalized === "included" || normalized === "✓") {
+      return (
+        <span className="flex items-center justify-center gap-1 text-green-600 font-semibold">
+          <Check className="h-5 w-5 text-green-600" />
+        </span>
+      );
+    }
+
+    if (normalized === "not included" || normalized === "✕") {
+      return (
+        <span className="flex items-center justify-center gap-1 text-red-600 font-semibold">
+          <X className="h-5 w-5 text-red-600" />
+        </span>
+      );
+    }
+
+    return <span className="text-sm">{value}</span>;
+  }
+
+  // Calculate recommended sample sizes
   const calculateSampleSizes = () => {
     const numAttributes = attributes.length;
     const maxLevels = Math.max(...attributes.map((attr) => attr.levels.length));
-    const totalLevels = attributes.reduce((sum, attr) => sum + attr.levels.length, 0);
-
-    // Rule of thumb: 300-500 responses per attribute for high confidence
-    // Adjusted by complexity (max levels and total parameters)
     const complexityFactor = Math.max(numAttributes, maxLevels * 0.5);
 
     const high = Math.ceil(complexityFactor * 100);
@@ -68,12 +89,8 @@ export const SurveyPreview = ({ attributes, projectKey }: SurveyPreviewProps) =>
       });
 
       if (!error && data) {
-        if (data.introduction) {
-          setIntroduction(data.introduction);
-        }
-        if (data.question) {
-          setQuestion(data.question);
-        }
+        if (data.introduction) setIntroduction(data.introduction);
+        if (data.question) setQuestion(data.question);
       }
     } catch (error) {
       console.error("Failed to load config:", error);
@@ -84,53 +101,32 @@ export const SurveyPreview = ({ attributes, projectKey }: SurveyPreviewProps) =>
 
   const saveConfig = async () => {
     if (!introduction.trim()) {
-      toast({
-        title: "Error",
-        description: "Please enter an introduction",
-        variant: "destructive",
-      });
+      toast({ title: "Error", description: "Please enter an introduction", variant: "destructive" });
       return;
     }
 
     if (!question.trim()) {
-      toast({
-        title: "Error",
-        description: "Please enter a question",
-        variant: "destructive",
-      });
+      toast({ title: "Error", description: "Please enter a question", variant: "destructive" });
       return;
     }
 
     setSaving(true);
     try {
       const { error } = await supabase.functions.invoke("save-survey-config", {
-        body: {
-          projectKey,
-          introduction: introduction.trim(),
-          question: question.trim(),
-        },
+        body: { projectKey, introduction: introduction.trim(), question: question.trim() },
       });
 
-      if (error) {
-        throw new Error(error.message || "Failed to save configuration");
-      }
+      if (error) throw new Error(error.message || "Failed to save configuration");
 
-      toast({
-        title: "Saved!",
-        description: "Survey configuration has been saved successfully",
-      });
+      toast({ title: "Saved!", description: "Survey configuration has been saved successfully" });
     } catch (err: any) {
-      toast({
-        title: "Error",
-        description: err.message,
-        variant: "destructive",
-      });
+      toast({ title: "Error", description: err.message, variant: "destructive" });
     } finally {
       setSaving(false);
     }
   };
 
-  // Generate random alternatives for preview - memoized to prevent regeneration on re-render
+  // Generate preview tasks
   const [tasks] = useState(() => {
     const generateAlternatives = (count: number): Alternative[] => {
       const alternatives = Array.from({ length: count }, () => {
@@ -142,22 +138,18 @@ export const SurveyPreview = ({ attributes, projectKey }: SurveyPreviewProps) =>
         return alt;
       });
 
-      // Add "None" option
       const noneAlt: Alternative = {};
-      attributes.forEach((attr) => {
-        noneAlt[attr.name] = "None of these";
-      });
+      attributes.forEach((attr) => (noneAlt[attr.name] = "None of these"));
       alternatives.push(noneAlt);
 
       return alternatives;
     };
 
-    // Generate 3 tasks with 3 alternatives each + None
     return Array.from({ length: 3 }, () => generateAlternatives(3));
   });
 
   const currentAlternatives = tasks[currentTask];
-  const numOptions = currentAlternatives.length - 1; // Exclude None
+  const numOptions = currentAlternatives.length - 1;
 
   const handleNext = () => {
     if (currentTask < tasks.length - 1) {
@@ -178,9 +170,6 @@ export const SurveyPreview = ({ attributes, projectKey }: SurveyPreviewProps) =>
       <Card className="shadow-card p-6">
         <div className="mb-6">
           <h2 className="text-2xl font-semibold mb-2">Survey Configuration</h2>
-          <p className="text-muted-foreground">
-            Configure the introduction and question that will appear in your survey
-          </p>
         </div>
 
         {loading ? (
@@ -193,12 +182,11 @@ export const SurveyPreview = ({ attributes, projectKey }: SurveyPreviewProps) =>
               <Label htmlFor="preview-introduction">Introduction</Label>
               <Textarea
                 id="preview-introduction"
-                placeholder="Write an introduction for your survey (2-3 paragraphs). This will be displayed at the top of the survey to provide context to respondents."
+                placeholder="Write an introduction..."
                 value={introduction}
                 onChange={(e) => setIntroduction(e.target.value)}
                 className="min-h-[150px]"
               />
-              <p className="text-xs text-muted-foreground">Provide context and instructions for survey respondents</p>
             </div>
 
             <div className="space-y-2">
@@ -209,7 +197,6 @@ export const SurveyPreview = ({ attributes, projectKey }: SurveyPreviewProps) =>
                 value={question}
                 onChange={(e) => setQuestion(e.target.value)}
               />
-              <p className="text-xs text-muted-foreground">This question will appear for each choice task</p>
             </div>
 
             <Button
@@ -237,89 +224,6 @@ export const SurveyPreview = ({ attributes, projectKey }: SurveyPreviewProps) =>
       <Card className="shadow-card p-8">
         <div className="mb-6">
           <h3 className="text-xl font-semibold mb-2">Survey Preview</h3>
-          <p className="text-muted-foreground text-sm">This is how your survey will appear to respondents</p>
-        </div>
-
-        <div className="mb-6">
-          <h4 className="text-base font-semibold mb-3">Attributes in Survey</h4>
-          <div className="rounded-lg border bg-muted/30 p-4">
-            <div className="flex flex-wrap gap-2">
-              {attributes.map((attr, idx) => (
-                <div
-                  key={idx}
-                  className="inline-flex items-center gap-2 rounded-md bg-background px-3 py-1.5 text-sm border"
-                >
-                  <span className="font-medium">{attr.name}</span>
-                  <span className="text-muted-foreground">({attr.levels.length} levels)</span>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-
-        <div className="mb-6 rounded-lg bg-accent/5 border-primary/20 border p-5">
-          <div className="mb-4">
-            <h4 className="text-base font-semibold mb-2">Sample Size Guidelines</h4>
-            <p className="text-xs text-muted-foreground">Recommended number of responses for statistical confidence</p>
-          </div>
-
-          <div className="space-y-3">
-            <div className="flex items-center justify-between p-3 rounded-lg bg-background border border-border">
-              <div>
-                <div className="font-semibold">90% Confidence</div>
-                <p className="text-xs text-muted-foreground mt-0.5">High precision for critical decisions</p>
-              </div>
-              <div className="text-right">
-                <div className="text-xl font-bold text-primary">{sampleSizes.high}</div>
-                <p className="text-xs text-muted-foreground">responses</p>
-              </div>
-            </div>
-
-            <div className="flex items-center justify-between p-3 rounded-lg bg-background border border-border">
-              <div>
-                <div className="font-semibold">80% Confidence</div>
-                <p className="text-xs text-muted-foreground mt-0.5">Good balance for most projects</p>
-              </div>
-              <div className="text-right">
-                <div className="text-xl font-bold text-primary">{sampleSizes.medium}</div>
-                <p className="text-xs text-muted-foreground">responses</p>
-              </div>
-            </div>
-
-            <div className="flex items-center justify-between p-3 rounded-lg bg-background border border-border">
-              <div>
-                <div className="font-semibold">70% Confidence</div>
-                <p className="text-xs text-muted-foreground mt-0.5">Acceptable for exploratory research</p>
-              </div>
-              <div className="text-right">
-                <div className="text-xl font-bold text-primary">{sampleSizes.low}</div>
-                <p className="text-xs text-muted-foreground">responses</p>
-              </div>
-            </div>
-          </div>
-
-          <p className="mt-3 text-xs text-muted-foreground italic">
-            Calculated for {attributes.length} attributes with{" "}
-            {attributes.reduce((sum, attr) => sum + attr.levels.length, 0)} total levels
-          </p>
-        </div>
-
-        {introduction && (
-          <div className="mb-6 p-4 rounded-lg bg-muted/50">
-            <p className="text-base text-muted-foreground whitespace-pre-line leading-relaxed">{introduction}</p>
-          </div>
-        )}
-
-        <div className="mb-6">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-xl font-semibold">
-              Task {currentTask + 1} of {tasks.length}
-            </h3>
-            <div className="text-sm text-muted-foreground">Preview Mode</div>
-          </div>
-          <p className="text-base font-medium text-foreground mb-6">
-            {question || "Which subscription plan would you prefer?"}
-          </p>
         </div>
 
         {/* Table Preview */}
@@ -337,35 +241,23 @@ export const SurveyPreview = ({ attributes, projectKey }: SurveyPreviewProps) =>
                 <th className="text-center p-3 font-semibold">None</th>
               </tr>
             </thead>
+
             <tbody>
               {attributes.map((attr, attrIdx) => {
-                const isIncludedType = attr.type === "included-not-included";
-
                 return (
                   <tr key={attrIdx} className={`border-b border-border ${attrIdx % 2 === 0 ? "bg-muted/20" : ""}`}>
                     <td className="p-3 font-medium">{attr.name}</td>
                     <td className="p-3 text-sm text-muted-foreground">{attr.description || ""}</td>
+
                     {currentAlternatives.slice(0, numOptions).map((alt, altIdx) => {
                       const value = alt[attr.name];
-                      const isIncluded = value === "Included";
-                      const isNotIncluded = value === "Not Included";
-
                       return (
                         <td key={altIdx} className="p-3 text-center">
-                          {isIncludedType ? (
-                            isIncluded ? (
-                              <Check className="h-5 w-5 text-green-600 mx-auto" />
-                            ) : isNotIncluded ? (
-                              <X className="h-5 w-5 text-red-600 mx-auto" />
-                            ) : (
-                              <span className="text-sm">{value}</span>
-                            )
-                          ) : (
-                            <span className="text-sm">{value}</span>
-                          )}
+                          {renderColored(value)}
                         </td>
                       );
                     })}
+
                     <td className="p-3 text-center text-muted-foreground text-sm">-</td>
                   </tr>
                 );
@@ -395,29 +287,6 @@ export const SurveyPreview = ({ attributes, projectKey }: SurveyPreviewProps) =>
             >
               None of these
             </Button>
-          </div>
-        </div>
-
-        {/* Donation Input Preview */}
-        <div className="border-t-2 border-border pt-6 mt-8">
-          <div className="bg-muted/30 rounded-lg p-6">
-            <Label className="text-base font-semibold mb-3 block">
-              Instead of subscribing, I'd rather donate this amount
-            </Label>
-            <div className="flex gap-3 items-end">
-              <div className="flex-1 max-w-xs">
-                <div className="relative">
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">$</span>
-                  <Input type="number" step="0.01" min="0" placeholder="0.00" className="pl-7" disabled />
-                </div>
-              </div>
-              <Button variant="outline" disabled>
-                Submit
-              </Button>
-            </div>
-            <p className="text-xs text-muted-foreground mt-2">
-              Submitting a donation suggestion will end the survey immediately
-            </p>
           </div>
         </div>
 
