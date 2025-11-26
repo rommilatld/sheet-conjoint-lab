@@ -1,23 +1,23 @@
 // @ts-ignore - Supabase edge runtime types
 
-import { getGoogleSheetsToken } from '../_shared/google-sheets.ts';
+import { getGoogleSheetsToken } from "../_shared/google-sheets.ts";
 
 const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
 async function decryptSurveyToken(token: string): Promise<{ sheetId: string; surveyId: string }> {
-  const encryptionSecret = Deno.env.get('ENCRYPTION_SECRET');
+  const encryptionSecret = Deno.env.get("ENCRYPTION_SECRET");
   if (!encryptionSecret) {
-    throw new Error('Missing encryption secret');
+    throw new Error("Missing encryption secret");
   }
 
   try {
     // Convert base64url to standard base64
-    let base64 = token.replace(/-/g, '+').replace(/_/g, '/');
+    let base64 = token.replace(/-/g, "+").replace(/_/g, "/");
     while (base64.length % 4 !== 0) {
-      base64 += '=';
+      base64 += "=";
     }
 
     // Decode base64 to binary
@@ -34,111 +34,100 @@ async function decryptSurveyToken(token: string): Promise<{ sheetId: string; sur
     // Decrypt
     const encoder = new TextEncoder();
     const keyData = encoder.encode(encryptionSecret.slice(0, 32));
-    const key = await crypto.subtle.importKey(
-      'raw',
-      keyData,
-      { name: 'AES-GCM' },
-      false,
-      ['decrypt']
-    );
+    const key = await crypto.subtle.importKey("raw", keyData, { name: "AES-GCM" }, false, ["decrypt"]);
 
-    const decrypted = await crypto.subtle.decrypt(
-      { name: 'AES-GCM', iv },
-      key,
-      encrypted
-    );
+    const decrypted = await crypto.subtle.decrypt({ name: "AES-GCM", iv }, key, encrypted);
 
     const decoder = new TextDecoder();
     const payload = JSON.parse(decoder.decode(decrypted));
-    
+
     return payload;
   } catch (error) {
-    console.error('Decryption error:', error);
-    throw new Error('Invalid survey token');
+    console.error("Decryption error:", error);
+    throw new Error("Invalid survey token");
   }
 }
 
 function calculateOptimalTaskCount(attributes: any[]): number {
   // Calculate total number of possible combinations
   const totalCombinations = attributes.reduce((acc, attr) => acc * attr.levels.length, 1);
-  
+
   // Use a heuristic: min 8 tasks, max 15 tasks
   // Scale based on attribute complexity
   const attributeCount = attributes.length;
   const avgLevels = attributes.reduce((sum, attr) => sum + attr.levels.length, 0) / attributeCount;
-  
+
   // More attributes or more levels = more tasks needed
   let optimalTasks = Math.round(attributeCount * avgLevels * 0.8);
-  
-  // Constrain between 8 and 15
-  optimalTasks = Math.max(8, Math.min(15, optimalTasks));
-  
-  console.log(`Calculated ${optimalTasks} tasks for ${attributeCount} attributes with avg ${avgLevels.toFixed(1)} levels`);
-  
+
+  // Constrain between 8 and 15 - ROMMIL EDITED
+  optimalTasks = Math.max(3, Math.min(5, optimalTasks));
+
+  console.log(
+    `Calculated ${optimalTasks} tasks for ${attributeCount} attributes with avg ${avgLevels.toFixed(1)} levels`,
+  );
+
   return optimalTasks;
 }
 
 function generateRandomTasks(attributes: any[], numTasks: number, numAlternatives = 3) {
   const tasks = [];
-  
+
   // Helper to check if two alternatives are identical
   const areAlternativesEqual = (alt1: any, alt2: any): boolean => {
-    return attributes.every(attr => alt1[attr.name] === alt2[attr.name]);
+    return attributes.every((attr) => alt1[attr.name] === alt2[attr.name]);
   };
-  
+
   for (let t = 0; t < numTasks; t++) {
     const alternatives: any[] = [];
-    
+
     // Generate unique alternatives
     for (let a = 0; a < numAlternatives; a++) {
       let attempts = 0;
       let alternative: any;
-      
+
       // Try to generate a unique alternative (max 50 attempts to avoid infinite loop)
       do {
         alternative = {};
-        attributes.forEach(attr => {
+        attributes.forEach((attr) => {
           const randomLevel = attr.levels[Math.floor(Math.random() * attr.levels.length)];
           alternative[attr.name] = randomLevel;
         });
         attempts++;
-      } while (
-        attempts < 50 && 
-        alternatives.some(existing => areAlternativesEqual(existing, alternative))
-      );
-      
+      } while (attempts < 50 && alternatives.some((existing) => areAlternativesEqual(existing, alternative)));
+
       alternatives.push(alternative);
     }
-    
+
     // Add "None" option as the last alternative
     const noneAlternative: any = {};
-    attributes.forEach(attr => {
-      noneAlternative[attr.name] = 'None of these';
+    attributes.forEach((attr) => {
+      noneAlternative[attr.name] = "None of these";
     });
     alternatives.push(noneAlternative);
-    
+
     tasks.push({
       taskId: t + 1,
       alternatives,
     });
   }
-  
+
   return tasks;
 }
 
 Deno.serve(async (req) => {
-  if (req.method === 'OPTIONS') {
+  if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
     const { surveyToken } = await req.json();
-    console.log('Loading survey from token');
+    console.log("Loading survey from token");
 
     const { sheetId, surveyId } = await decryptSurveyToken(surveyToken);
-    
+
     const token = await getGoogleSheetsToken();
-    
+
     // Load survey metadata (introduction and question) from Surveys tab
     const surveyMetaResponse = await fetch(
       `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/Surveys!A:F`,
@@ -146,20 +135,20 @@ Deno.serve(async (req) => {
         headers: {
           Authorization: `Bearer ${token}`,
         },
-      }
+      },
     );
-    
+
     let introduction = "";
     let question = "Which subscription plan would you prefer?";
-    
+
     if (surveyMetaResponse.ok) {
       const surveyMetaData = await surveyMetaResponse.json();
       const surveyRows = surveyMetaData.values || [];
       console.log(`Found ${surveyRows.length} survey rows`);
-      
+
       // Find the row with matching surveyId (column A, index 0)
       const surveyRow = surveyRows.find((row: string[]) => row[0] === surveyId);
-      
+
       if (surveyRow) {
         console.log(`Found survey row for ${surveyId}, length: ${surveyRow.length}`);
         // Column D (index 3): Introduction
@@ -176,23 +165,20 @@ Deno.serve(async (req) => {
         console.warn(`No survey row found for surveyId: ${surveyId}`);
       }
     } else {
-      console.warn('Failed to load survey metadata from Surveys tab');
+      console.warn("Failed to load survey metadata from Surveys tab");
     }
-    
+
     console.log(`Final introduction length: ${introduction.length}, question: ${question}`);
-    
+
     // Load attributes from Google Sheets
-    const response = await fetch(
-      `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/Attributes!A:B`,
-      {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      }
-    );
+    const response = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/Attributes!A:B`, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
 
     if (!response.ok) {
-      throw new Error('Failed to read attributes from Google Sheets');
+      throw new Error("Failed to read attributes from Google Sheets");
     }
 
     const data = await response.json();
@@ -215,45 +201,42 @@ Deno.serve(async (req) => {
       name,
       levels,
     }));
-    
+
     if (attributes.length === 0) {
-      throw new Error('No attributes found for this survey');
+      throw new Error("No attributes found for this survey");
     }
-    
+
     // Calculate optimal number of tasks based on attributes
     const optimalTaskCount = calculateOptimalTaskCount(attributes);
-    
+
     // Generate random tasks for the survey
     const tasks = generateRandomTasks(attributes, optimalTaskCount, 3);
-    
+
     // Save design to Google Sheets Design tab (needed for analysis)
     try {
       // Create Design tab if it doesn't exist
-      await fetch(
-        `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}:batchUpdate`,
-        {
-          method: 'POST',
-          headers: {
-            Authorization: `Bearer ${token}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            requests: [
-              {
-                addSheet: {
-                  properties: {
-                    title: 'Design',
-                  },
+      await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${sheetId}:batchUpdate`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          requests: [
+            {
+              addSheet: {
+                properties: {
+                  title: "Design",
                 },
               },
-            ],
-          }),
-        }
-      );
+            },
+          ],
+        }),
+      });
     } catch (e) {
       // Tab might already exist
     }
-    
+
     // Check if design already exists for this survey
     const existingDesignResponse = await fetch(
       `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/Design!A:A`,
@@ -261,64 +244,62 @@ Deno.serve(async (req) => {
         headers: {
           Authorization: `Bearer ${token}`,
         },
-      }
+      },
     );
-    
+
     let designExists = false;
     if (existingDesignResponse.ok) {
       const existingData = await existingDesignResponse.json();
       const existingRows = existingData.values || [];
       // Check if any row contains this surveyId prefix
-      designExists = existingRows.some((row: string[]) => 
-        row[0] && row[0].startsWith(`${surveyId}_`)
-      );
+      designExists = existingRows.some((row: string[]) => row[0] && row[0].startsWith(`${surveyId}_`));
     }
-    
+
     // Only write design if it doesn't exist yet
     if (!designExists) {
       // Build design rows: TaskID, AltID, Attribute1, Attribute2, ...
       const designRows: any[][] = [];
-      
+
       // Header row
-      const attrNames = attributes.map(a => a.name);
-      designRows.push(['TaskID', 'AltID', ...attrNames]);
-      
+      const attrNames = attributes.map((a) => a.name);
+      designRows.push(["TaskID", "AltID", ...attrNames]);
+
       // Data rows
-      tasks.forEach(task => {
+      tasks.forEach((task) => {
         task.alternatives.forEach((alt: any, altIndex: number) => {
           const row = [
             `${surveyId}_task${task.taskId}`,
             altIndex.toString(),
-            ...attrNames.map(name => alt[name] || '')
+            ...attrNames.map((name) => alt[name] || ""),
           ];
           designRows.push(row);
         });
       });
-      
+
       // Append to Design tab
       await fetch(
         `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/Design!A:Z:append?valueInputOption=RAW`,
         {
-          method: 'POST',
+          method: "POST",
           headers: {
             Authorization: `Bearer ${token}`,
-            'Content-Type': 'application/json',
+            "Content-Type": "application/json",
           },
           body: JSON.stringify({
             values: designRows,
           }),
-        }
+        },
       );
-      
+
       console.log(`Saved design structure for survey ${surveyId} to Design tab`);
     } else {
       console.log(`Design already exists for survey ${surveyId}, skipping`);
     }
-    
+
     console.log(`Survey loaded with ${tasks.length} tasks`);
 
     return new Response(
-      JSON.stringify({ 
+      JSON.stringify({
         surveyId,
         tasks,
         attributes,
@@ -326,19 +307,16 @@ Deno.serve(async (req) => {
         question,
       }),
       {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
         status: 200,
-      }
+      },
     );
   } catch (error) {
-    console.error('Error loading survey:', error);
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-    return new Response(
-      JSON.stringify({ error: errorMessage }),
-      {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 400,
-      }
-    );
+    console.error("Error loading survey:", error);
+    const errorMessage = error instanceof Error ? error.message : "Unknown error";
+    return new Response(JSON.stringify({ error: errorMessage }), {
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+      status: 400,
+    });
   }
 });
