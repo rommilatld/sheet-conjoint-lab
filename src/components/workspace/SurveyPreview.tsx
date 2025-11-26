@@ -36,21 +36,21 @@ export const SurveyPreview = ({ attributes, projectKey }: SurveyPreviewProps) =>
   // Calculate recommended sample sizes based on study complexity
   const calculateSampleSizes = () => {
     const numAttributes = attributes.length;
-    const maxLevels = Math.max(...attributes.map(attr => attr.levels.length));
+    const maxLevels = Math.max(...attributes.map((attr) => attr.levels.length));
     const totalLevels = attributes.reduce((sum, attr) => sum + attr.levels.length, 0);
-    
+
     // Rule of thumb: 300-500 responses per attribute for high confidence
     // Adjusted by complexity (max levels and total parameters)
     const complexityFactor = Math.max(numAttributes, maxLevels * 0.5);
-    
+
     const high = Math.ceil(complexityFactor * 100);
     const medium = Math.ceil(complexityFactor * 60);
     const low = Math.ceil(complexityFactor * 30);
-    
+
     return {
       high: Math.max(300, Math.min(high, 1000)),
       medium: Math.max(200, Math.min(medium, 600)),
-      low: Math.max(100, Math.min(low, 300))
+      low: Math.max(100, Math.min(low, 300)),
     };
   };
 
@@ -141,14 +141,14 @@ export const SurveyPreview = ({ attributes, projectKey }: SurveyPreviewProps) =>
         });
         return alt;
       });
-      
+
       // Add "None" option
       const noneAlt: Alternative = {};
       attributes.forEach((attr) => {
-        noneAlt[attr.name] = 'None of these';
+        noneAlt[attr.name] = "None of these";
       });
       alternatives.push(noneAlt);
-      
+
       return alternatives;
     };
 
@@ -245,7 +245,10 @@ export const SurveyPreview = ({ attributes, projectKey }: SurveyPreviewProps) =>
           <div className="rounded-lg border bg-muted/30 p-4">
             <div className="flex flex-wrap gap-2">
               {attributes.map((attr, idx) => (
-                <div key={idx} className="inline-flex items-center gap-2 rounded-md bg-background px-3 py-1.5 text-sm border">
+                <div
+                  key={idx}
+                  className="inline-flex items-center gap-2 rounded-md bg-background px-3 py-1.5 text-sm border"
+                >
                   <span className="font-medium">{attr.name}</span>
                   <span className="text-muted-foreground">({attr.levels.length} levels)</span>
                 </div>
@@ -257,9 +260,7 @@ export const SurveyPreview = ({ attributes, projectKey }: SurveyPreviewProps) =>
         <div className="mb-6 rounded-lg bg-accent/5 border-primary/20 border p-5">
           <div className="mb-4">
             <h4 className="text-base font-semibold mb-2">Sample Size Guidelines</h4>
-            <p className="text-xs text-muted-foreground">
-              Recommended number of responses for statistical confidence
-            </p>
+            <p className="text-xs text-muted-foreground">Recommended number of responses for statistical confidence</p>
           </div>
 
           <div className="space-y-3">
@@ -298,7 +299,8 @@ export const SurveyPreview = ({ attributes, projectKey }: SurveyPreviewProps) =>
           </div>
 
           <p className="mt-3 text-xs text-muted-foreground italic">
-            Calculated for {attributes.length} attributes with {attributes.reduce((sum, attr) => sum + attr.levels.length, 0)} total levels
+            Calculated for {attributes.length} attributes with{" "}
+            {attributes.reduce((sum, attr) => sum + attr.levels.length, 0)} total levels
           </p>
         </div>
 
@@ -338,16 +340,16 @@ export const SurveyPreview = ({ attributes, projectKey }: SurveyPreviewProps) =>
             <tbody>
               {attributes.map((attr, attrIdx) => {
                 const isIncludedType = attr.type === "included-not-included";
-                
+
                 return (
-                  <tr key={attrIdx} className={`border-b border-border ${attrIdx % 2 === 0 ? 'bg-muted/20' : ''}`}>
+                  <tr key={attrIdx} className={`border-b border-border ${attrIdx % 2 === 0 ? "bg-muted/20" : ""}`}>
                     <td className="p-3 font-medium">{attr.name}</td>
                     <td className="p-3 text-sm text-muted-foreground">{attr.description || ""}</td>
                     {currentAlternatives.slice(0, numOptions).map((alt, altIdx) => {
                       const value = alt[attr.name];
                       const isIncluded = value === "Included";
                       const isNotIncluded = value === "Not Included";
-                      
+
                       return (
                         <td key={altIdx} className="p-3 text-center">
                           {isIncludedType ? (
@@ -380,7 +382,7 @@ export const SurveyPreview = ({ attributes, projectKey }: SurveyPreviewProps) =>
               <Button
                 key={i}
                 variant={selectedOption === i ? "default" : "outline"}
-                className={`flex-1 min-w-[120px] ${selectedOption === i ? 'gradient-primary' : ''}`}
+                className={`flex-1 min-w-[120px] ${selectedOption === i ? "gradient-primary" : ""}`}
                 onClick={() => setSelectedOption(i)}
               >
                 Option {String.fromCharCode(65 + i)}
@@ -388,7 +390,7 @@ export const SurveyPreview = ({ attributes, projectKey }: SurveyPreviewProps) =>
             ))}
             <Button
               variant={selectedOption === numOptions ? "default" : "outline"}
-              className={`flex-1 min-w-[120px] ${selectedOption === numOptions ? 'gradient-primary' : ''}`}
+              className={`flex-1 min-w-[120px] ${selectedOption === numOptions ? "gradient-primary" : ""}`}
               onClick={() => setSelectedOption(numOptions)}
             >
               None of these
@@ -400,29 +402,20 @@ export const SurveyPreview = ({ attributes, projectKey }: SurveyPreviewProps) =>
         <div className="border-t-2 border-border pt-6 mt-8">
           <div className="bg-muted/30 rounded-lg p-6">
             <Label className="text-base font-semibold mb-3 block">
-              I'd rather donate this amount
+              Instead of subscribing, I'd rather donate this amount
             </Label>
             <div className="flex gap-3 items-end">
               <div className="flex-1 max-w-xs">
                 <div className="relative">
                   <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">$</span>
-                  <Input
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    placeholder="0.00"
-                    className="pl-7"
-                    disabled
-                  />
+                  <Input type="number" step="0.01" min="0" placeholder="0.00" className="pl-7" disabled />
                 </div>
               </div>
               <Button variant="outline" disabled>
-                Submit Donation
+                Submit
               </Button>
             </div>
-            <p className="text-xs text-muted-foreground mt-2">
-              Submitting a donation will end the survey immediately
-            </p>
+            <p className="text-xs text-muted-foreground mt-2">Submitting a donation will end the survey immediately</p>
           </div>
         </div>
 
@@ -438,11 +431,7 @@ export const SurveyPreview = ({ attributes, projectKey }: SurveyPreviewProps) =>
             ))}
           </div>
 
-          <Button
-            onClick={handleNext}
-            disabled={currentTask === tasks.length - 1}
-            className="gradient-primary"
-          >
+          <Button onClick={handleNext} disabled={currentTask === tasks.length - 1} className="gradient-primary">
             Next
             <ChevronRight className="ml-2 h-4 w-4" />
           </Button>

@@ -29,13 +29,13 @@ const SurveyResponse = () => {
   const { token } = useParams();
   const navigate = useNavigate();
   const { toast } = useToast();
-  
+
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [taskTransitioning, setTaskTransitioning] = useState(false);
   const [completed, setCompleted] = useState(false);
   const [error, setError] = useState("");
-  
+
   const [surveyData, setSurveyData] = useState<any>(null);
   const [tasks, setTasks] = useState<Task[]>([]);
   const [attributes, setAttributes] = useState<Attribute[]>([]);
@@ -53,7 +53,7 @@ const SurveyResponse = () => {
   const loadSurvey = async () => {
     setLoading(true);
     try {
-      const { data, error } = await supabase.functions.invoke('load-survey', {
+      const { data, error } = await supabase.functions.invoke("load-survey", {
         body: { surveyToken: token },
       });
 
@@ -65,7 +65,7 @@ const SurveyResponse = () => {
         throw new Error("Invalid survey data");
       }
 
-      console.log('Survey data loaded:', {
+      console.log("Survey data loaded:", {
         hasIntroduction: !!data.introduction,
         introLength: data.introduction?.length || 0,
         hasQuestion: !!data.question,
@@ -98,7 +98,7 @@ const SurveyResponse = () => {
 
     setSubmitting(true);
     try {
-      const { error } = await supabase.functions.invoke('submit-survey-response', {
+      const { error } = await supabase.functions.invoke("submit-survey-response", {
         body: {
           surveyToken: token,
           type: "donation",
@@ -139,7 +139,7 @@ const SurveyResponse = () => {
       // Show loading animation
       setTaskTransitioning(true);
       setSelectedOption(null);
-      
+
       // Wait 600ms before showing next task
       setTimeout(() => {
         setCurrentTask(currentTask + 1);
@@ -159,7 +159,7 @@ const SurveyResponse = () => {
         [currentTask]: selectedOption,
       };
 
-      const { error } = await supabase.functions.invoke('submit-survey-response', {
+      const { error } = await supabase.functions.invoke("submit-survey-response", {
         body: {
           surveyToken: token,
           type: "survey",
@@ -202,11 +202,7 @@ const SurveyResponse = () => {
           <Card className="p-8 text-center">
             <h2 className="mb-2 text-2xl font-bold text-destructive">Error</h2>
             <p className="text-muted-foreground">{error}</p>
-            <Button
-              onClick={() => navigate("/")}
-              className="mt-6"
-              variant="outline"
-            >
+            <Button onClick={() => navigate("/")} className="mt-6" variant="outline">
               Return Home
             </Button>
           </Card>
@@ -225,12 +221,8 @@ const SurveyResponse = () => {
               <CheckCircle className="h-10 w-10 text-accent" />
             </div>
             <h1 className="mb-4 text-3xl font-bold">Thank You!</h1>
-            <p className="mb-6 text-lg text-muted-foreground">
-              Your response has been recorded successfully.
-            </p>
-            <p className="text-muted-foreground">
-              You can close this window now.
-            </p>
+            <p className="mb-6 text-lg text-muted-foreground">Your response has been recorded successfully.</p>
+            <p className="text-muted-foreground">You can close this window now.</p>
           </Card>
         </div>
         <Footer />
@@ -239,8 +231,8 @@ const SurveyResponse = () => {
   }
 
   const currentTaskData = tasks[currentTask];
-  const numOptions = currentTaskData.alternatives.filter(alt => 
-    !Object.values(alt).every(val => val === 'None of these')
+  const numOptions = currentTaskData.alternatives.filter(
+    (alt) => !Object.values(alt).every((val) => val === "None of these"),
   ).length;
 
   return (
@@ -262,7 +254,7 @@ const SurveyResponse = () => {
                 Task {currentTask + 1} of {tasks.length}
               </h3>
               <div className="text-sm text-muted-foreground">
-                {Math.round(((currentTask) / tasks.length) * 100)}% complete
+                {Math.round((currentTask / tasks.length) * 100)}% complete
               </div>
             </div>
             <p className="text-base font-medium text-foreground mb-6">
@@ -300,16 +292,19 @@ const SurveyResponse = () => {
                   <tbody>
                     {attributes.map((attr, attrIdx) => {
                       const isIncludedType = attr.type === "included-not-included";
-                      
+
                       return (
-                        <tr key={attrIdx} className={`border-b border-border ${attrIdx % 2 === 0 ? 'bg-muted/20' : ''}`}>
+                        <tr
+                          key={attrIdx}
+                          className={`border-b border-border ${attrIdx % 2 === 0 ? "bg-muted/20" : ""}`}
+                        >
                           <td className="p-3 font-medium">{attr.name}</td>
                           <td className="p-3 text-sm text-muted-foreground">{attr.description || ""}</td>
                           {currentTaskData.alternatives.slice(0, numOptions).map((alt, altIdx) => {
                             const value = alt[attr.name];
                             const isIncluded = value === "Included";
                             const isNotIncluded = value === "Not Included";
-                            
+
                             return (
                               <td key={altIdx} className="p-3 text-center">
                                 {isIncludedType ? (
@@ -342,7 +337,7 @@ const SurveyResponse = () => {
                     <Button
                       key={i}
                       variant={selectedOption === i ? "default" : "outline"}
-                      className={`flex-1 min-w-[120px] ${selectedOption === i ? 'gradient-primary' : ''}`}
+                      className={`flex-1 min-w-[120px] ${selectedOption === i ? "gradient-primary" : ""}`}
                       onClick={() => setSelectedOption(i)}
                     >
                       Option {String.fromCharCode(65 + i)}
@@ -350,7 +345,7 @@ const SurveyResponse = () => {
                   ))}
                   <Button
                     variant={selectedOption === numOptions ? "default" : "outline"}
-                    className={`flex-1 min-w-[120px] ${selectedOption === numOptions ? 'gradient-primary' : ''}`}
+                    className={`flex-1 min-w-[120px] ${selectedOption === numOptions ? "gradient-primary" : ""}`}
                     onClick={() => setSelectedOption(numOptions)}
                   >
                     None of these
@@ -362,7 +357,7 @@ const SurveyResponse = () => {
               <div className="border-t-2 border-border pt-6 mt-8">
                 <div className="bg-muted/30 rounded-lg p-6">
                   <Label htmlFor="donation" className="text-base font-semibold mb-3 block">
-                    I'd rather donate this amount
+                    Instead of subscribing, I'd rather donate this amount
                   </Label>
                   <div className="flex gap-3 items-end">
                     <div className="flex-1 max-w-xs">
@@ -380,18 +375,14 @@ const SurveyResponse = () => {
                         />
                       </div>
                     </div>
-                    <Button
-                      onClick={handleDonationSubmit}
-                      disabled={!donationAmount || submitting}
-                      variant="outline"
-                    >
+                    <Button onClick={handleDonationSubmit} disabled={!donationAmount || submitting} variant="outline">
                       {submitting ? (
                         <>
                           <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                           Submitting...
                         </>
                       ) : (
-                        "Submit Donation"
+                        "Submit"
                       )}
                     </Button>
                   </div>
@@ -409,11 +400,7 @@ const SurveyResponse = () => {
                 <div
                   key={idx}
                   className={`h-2 w-2 rounded-full ${
-                    idx < currentTask
-                      ? "bg-accent"
-                      : idx === currentTask
-                      ? "bg-primary"
-                      : "bg-muted"
+                    idx < currentTask ? "bg-accent" : idx === currentTask ? "bg-primary" : "bg-muted"
                   }`}
                 />
               ))}
