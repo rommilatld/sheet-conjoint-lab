@@ -6,19 +6,21 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-// ICON TRANSFORMATION MAP
+// ICON MAP — case-insensitive, matches spreadsheet levels
 const ICON_MAP: Record<string, string> = {
-  Included: "✔️",
-  "Not included": "❌",
-  Unlimited: "♾️",
-  Premium: "💎",
-  Basic: "📦",
-  "None of these": "🚫",
+  included: "✔️",
+  "not included": "❌",
+  "none of these": "🚫",
+  unlimited: "♾️",
+  premium: "💎",
+  basic: "📦",
 };
 
-// Converts level text to icon
+// Case-insensitive icon transformer
 function mapLevelToIcon(level: string): string {
-  return ICON_MAP[level] || level;
+  if (!level) return level;
+  const key = level.trim().toLowerCase();
+  return ICON_MAP[key] || level; // fallback to raw text
 }
 
 async function decryptSurveyToken(token: string): Promise<{ sheetId: string; surveyId: string }> {
@@ -54,8 +56,6 @@ function calculateOptimalTaskCount(attributes: any[]): number {
   const avgLevels = attributes.reduce((sum, attr) => sum + attr.levels.length, 0) / attributeCount;
 
   let optimalTasks = Math.round(attributeCount * avgLevels * 0.8);
-
-  // STRICT MIN/MAX for survey length
   optimalTasks = Math.max(3, Math.min(5, optimalTasks));
 
   console.log(`Calculated ${optimalTasks} tasks for ${attributeCount} attributes (avg levels ${avgLevels.toFixed(1)})`);
@@ -79,7 +79,9 @@ function generateRandomTasks(attributes: any[], numTasks: number, numAlternative
         alternative = {};
         attributes.forEach((attr) => {
           const randomLevel = attr.levels[Math.floor(Math.random() * attr.levels.length)];
-          alternative[attr.name] = randomLevel; // already an icon
+
+          // apply icon mapping
+          alternative[attr.name] = mapLevelToIcon(randomLevel);
         });
         attempts++;
       } while (attempts < 50 && alternatives.some((existing) => areAlternativesEqual(existing, alternative)));
@@ -87,7 +89,7 @@ function generateRandomTasks(attributes: any[], numTasks: number, numAlternative
       alternatives.push(alternative);
     }
 
-    // Add "None" option
+    // "None of these" always icon-mapped
     const noneAlternative: any = {};
     attributes.forEach((attr) => {
       noneAlternative[attr.name] = mapLevelToIcon("None of these");
@@ -147,18 +149,19 @@ Deno.serve(async (req) => {
       }
     }
 
+    // attributes mapped ONCE here (so levels contain icons now)
     const attributes = Array.from(attributesMap.entries()).map(([name, levels]) => ({
       name,
-      levels: levels.map((l: string) => mapLevelToIcon(l)), // mapped once
+      levels: levels.map((l: string) => mapLevelToIcon(l)),
     }));
 
     if (attributes.length === 0) throw new Error("No attributes found for this survey");
 
-    // Calculate tasks with strict min/max
+    // Generate tasks
     const optimalTaskCount = calculateOptimalTaskCount(attributes);
     const tasks = generateRandomTasks(attributes, optimalTaskCount, 3);
 
-    // Save design to Google Sheets Design tab
+    // Save design sheet if needed
     try {
       await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${sheetId}:batchUpdate`, {
         method: "POST",
