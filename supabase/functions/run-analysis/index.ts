@@ -352,7 +352,7 @@ function runConjointAnalysis(
 
     // Normalize utilities within each attribute (zero-center)
     const meanUtil = levelUtils.reduce((a, b) => a + b, 0) / (levelUtils.length || 1);
-    attr.levels.forEach((level, idx) => {
+    attr.levels.forEach((level) => {
       const key = `${attr.name}:${level}`;
       utilities[key] = utilities[key] - meanUtil;
     });
@@ -574,7 +574,45 @@ Deno.serve(async (req) => {
     const noneAlternatives = new Map<string, number>();
 
     // Get attribute names from header (columns 2+)
-    const attrNames = designRows[0].slice(2);
+    const headerAttrNames = designRows[0].slice(2);
+
+    // Map raw Design headers to canonical attribute names from Attributes tab
+    const designAttrToCanonical: Record<string, string> = {};
+    const attributesLower = attributes.map((a) => ({
+      name: a.name,
+      lower: a.name.trim().toLowerCase(),
+    }));
+
+    headerAttrNames.forEach((header) => {
+      const raw = (header || "").trim();
+      if (!raw) return;
+      const lower = raw.toLowerCase();
+
+      // 1. Exact match (case-insensitive)
+      let match = attributesLower.find((a) => a.lower === lower);
+      if (match) {
+        designAttrToCanonical[raw] = match.name;
+        return;
+      }
+
+      // 2. Header starts with attribute name, eg "Pricing per YEAR (USD)" vs "Pricing"
+      match = attributesLower.find((a) => lower.startsWith(a.lower));
+      if (match) {
+        designAttrToCanonical[raw] = match.name;
+        return;
+      }
+
+      // 3. Attribute name starts with header (reverse case)
+      match = attributesLower.find((a) => a.lower.startsWith(lower));
+      if (match) {
+        designAttrToCanonical[raw] = match.name;
+        return;
+      }
+
+      // If none matched, we leave this header unmapped and ignore that column later
+    });
+
+    console.log("Design header mapping:", designAttrToCanonical);
 
     // Skip header and parse design
     for (let i = 1; i < designRows.length; i++) {
@@ -593,12 +631,14 @@ Deno.serve(async (req) => {
       const altLevels = new Map<string, string>();
       let isNoneAlt = true;
 
-      for (let j = 0; j < attrNames.length && j < row.length - 2; j++) {
-        const attrName = attrNames[j];
+      for (let j = 0; j < headerAttrNames.length && j < row.length - 2; j++) {
+        const headerName = headerAttrNames[j];
+        const canonicalName = designAttrToCanonical[headerName];
         const level = row[j + 2];
 
-        if (attrName && level) {
-          altLevels.set(attrName, level);
+        // Only use columns we can map back to a known attribute
+        if (canonicalName && level) {
+          altLevels.set(canonicalName, level);
           if (level !== "None of these") {
             isNoneAlt = false;
           }
