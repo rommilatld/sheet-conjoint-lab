@@ -79,7 +79,7 @@ function generatePlans(
   pricingStrategy: "submitted" | "suggested",
   goal: "revenue" | "purchases",
 ) {
-  const plans = [];
+  const plans: any[] = [];
   const planNames = [
     "Good",
     "Better",
@@ -231,7 +231,6 @@ function generatePlans(
   // Sort plans based on goal
   if (goal === "revenue") {
     // For revenue maximization: sort by expected revenue (price * utility as proxy for conversion)
-    // Higher utility + higher price = better for revenue
     plans.sort((a, b) => {
       const revenueA = a.suggestedPrice * Math.exp(a.totalUtility / 10);
       const revenueB = b.suggestedPrice * Math.exp(b.totalUtility / 10);
@@ -239,7 +238,6 @@ function generatePlans(
     });
   } else {
     // For purchase maximization: sort by expected adoption (utility - price sensitivity)
-    // Higher utility, lower price = better for purchases
     plans.sort((a, b) => {
       const adoptionScoreA = a.totalUtility - a.suggestedPrice * 0.1;
       const adoptionScoreB = b.totalUtility - b.suggestedPrice * 0.1;
@@ -344,7 +342,6 @@ function runConjointAnalysis(
         const selectionRate = chosen / total;
 
         // Convert to utility using log-odds (logit transformation)
-        // This handles 0 and 1 selection rates gracefully
         const adjustedRate = Math.max(0.01, Math.min(0.99, selectionRate));
         const utility = Math.log(adjustedRate / (1 - adjustedRate));
 
@@ -354,7 +351,7 @@ function runConjointAnalysis(
     });
 
     // Normalize utilities within each attribute (zero-center)
-    const meanUtil = levelUtils.reduce((a, b) => a + b, 0) / levelUtils.length;
+    const meanUtil = levelUtils.reduce((a, b) => a + b, 0) / (levelUtils.length || 1);
     attr.levels.forEach((level, idx) => {
       const key = `${attr.name}:${level}`;
       utilities[key] = utilities[key] - meanUtil;
@@ -413,7 +410,9 @@ Deno.serve(async (req) => {
     // Ensure Attributes tab exists (will create if missing)
     await ensureTabExists(sheetId, token, "Attributes");
 
-    // Read attributes
+    // -----------------------------
+    // READ & PARSE ATTRIBUTES TAB
+    // -----------------------------
     const attrResponse = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/Attributes!A:D`, {
       headers: {
         Authorization: `Bearer ${token}`,
@@ -439,37 +438,77 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Parse attributes
-    const attributesMap = new Map();
-    const priceInfo = new Map();
+    // Robust attribute parsing (handles merged cells, like get-attributes)
+    const attributesMap = new Map<string, string[]>();
+    const priceInfo = new Map<
+      string,
+      {
+        isPriceAttribute: boolean;
+        currency: string;
+      }
+    >();
+
+    let lastName: string | null = null;
+    let lastIsPriceAttr: string | null = null;
+    let lastCurrency: string | null = null;
+
+    // attrRows[0] is header: [Name, Level, IsPriceAttr, Currency]
     for (let i = 1; i < attrRows.length; i++) {
-      const [name, level, isPriceAttr, currency] = attrRows[i];
-      if (name && level) {
-        if (!attributesMap.has(name)) {
-          attributesMap.set(name, []);
-          // Store price info only once per attribute (from first row)
-          if (isPriceAttr) {
-            priceInfo.set(name, {
-              isPriceAttribute: isPriceAttr === "TRUE",
-              currency: currency || "USD",
-            });
-          }
+      const row = attrRows[i];
+      const rawName = (row[0] || "").trim();
+      const rawLevel = (row[1] || "").trim();
+      const rawIsPriceAttr = (row[2] || "").trim();
+      const rawCurrency = (row[3] || "").trim();
+
+      const effectiveName = rawName || lastName;
+      if (!effectiveName) continue;
+
+      // New attribute block if name present
+      if (rawName) {
+        lastName = rawName;
+        lastIsPriceAttr = rawIsPriceAttr;
+        lastCurrency = rawCurrency || "USD";
+
+        if (!attributesMap.has(rawName)) {
+          attributesMap.set(rawName, []);
         }
-        attributesMap.get(name).push(level);
+
+        if (rawIsPriceAttr === "TRUE") {
+          priceInfo.set(rawName, {
+            isPriceAttribute: true,
+            currency: lastCurrency,
+          });
+        }
+      }
+
+      if (rawLevel) {
+        const targetName = effectiveName;
+        if (!attributesMap.has(targetName)) {
+          attributesMap.set(targetName, []);
+        }
+        attributesMap.get(targetName)!.push(rawLevel);
       }
     }
 
     const attributes: Attribute[] = Array.from(attributesMap.entries()).map(([name, levels]) => {
-      const info = priceInfo.get(name) || {};
+      const info = priceInfo.get(name) || { isPriceAttribute: false, currency: "USD" };
       return {
         name,
-        levels: levels as string[],
-        isPriceAttribute: info.isPriceAttribute || false,
-        currency: info.currency || "USD",
+        levels,
+        isPriceAttribute: info.isPriceAttribute,
+        currency: info.currency,
       };
     });
 
-    // Read responses
+    if (attributes.length === 0) {
+      throw new Error(
+        "Parsed 0 attributes from the Attributes tab. Check that your Attributes sheet has names and levels configured.",
+      );
+    }
+
+    // -----------------------------
+    // READ RESPONSES
+    // -----------------------------
     const respResponse = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/Responses!A:E`, {
       headers: {
         Authorization: `Bearer ${token}`,
@@ -485,15 +524,16 @@ Deno.serve(async (req) => {
 
     if (respRows.length <= 1) {
       return new Response(
-        JSON.stringify({ 
+        JSON.stringify({
           error: "No responses found",
-          message: "No survey responses have been collected yet. Share your survey links and come back once respondents have completed the survey.",
-          noResponses: true
+          message:
+            "No survey responses have been collected yet. Share your survey links and come back once respondents have completed the survey.",
+          noResponses: true,
         }),
-        { 
+        {
           status: 200,
-          headers: { ...corsHeaders, "Content-Type": "application/json" } 
-        }
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        },
       );
     }
 
@@ -505,7 +545,9 @@ Deno.serve(async (req) => {
       selectedAlt: parseInt(row[3]),
     }));
 
-    // Load Design tab to parse task structure and identify "None" alternatives
+    // -----------------------------
+    // READ DESIGN TAB
+    // -----------------------------
     const designResponse = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/Design!A:Z`, {
       headers: {
         Authorization: `Bearer ${token}`,
