@@ -339,7 +339,7 @@ export const SurveyPreview = ({ attributes, projectKey }: SurveyPreviewProps) =>
         <div className="border-t-2 border-border pt-6 mt-8">
           <div className="bg-muted/30 rounded-lg p-6">
             <Label className="text-base font-semibold mb-3 block">
-              If you’d rather not subscribe annually, what amount would you donate instead?
+              If you’d rather not subscribe, what amount would you donate instead?
             </Label>
             <div className="flex gap-3 items-end">
               <div className="flex-1 max-w-xs">
