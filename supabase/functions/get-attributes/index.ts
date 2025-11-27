@@ -1,43 +1,40 @@
 // @ts-ignore - Supabase edge runtime types
 
-import { getGoogleSheetsToken, decryptProjectKey } from '../_shared/google-sheets.ts';
-import { getAttributes as getFromMemory } from '../_shared/in-memory-store.ts';
+import { getGoogleSheetsToken, decryptProjectKey } from "../_shared/google-sheets.ts";
+import { getAttributes as getFromMemory } from "../_shared/in-memory-store.ts";
 
 const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
 Deno.serve(async (req) => {
-  if (req.method === 'OPTIONS') {
+  if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
     const { projectKey } = await req.json();
-    console.log('Getting attributes');
+    console.log("Getting attributes");
 
     const sheetId = await decryptProjectKey(projectKey);
-    
+
     // Try Google Sheets first, fall back to in-memory storage
     try {
       const token = await getGoogleSheetsToken();
 
-      const response = await fetch(
-        `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/Attributes!A:F`,
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        }
-      );
+      const response = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/Attributes!A:F`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
 
       if (!response.ok) {
         const errorText = await response.text();
-        console.error('Google Sheets API error:', {
+        console.error("Google Sheets API error:", {
           status: response.status,
           statusText: response.statusText,
-          body: errorText
+          body: errorText,
         });
         throw new Error(`Failed to read from Google Sheets: ${response.status} ${response.statusText} - ${errorText}`);
       }
@@ -50,18 +47,27 @@ Deno.serve(async (req) => {
       const metadataMap = new Map();
       for (let i = 1; i < rows.length; i++) {
         const [name, level, isPriceAttr, currency, description, type] = rows[i];
-        if (name && level) {
-          if (!attributesMap.has(name)) {
-            attributesMap.set(name, []);
-            // Store metadata only once per attribute (from first row)
-            metadataMap.set(name, {
-              isPriceAttribute: isPriceAttr === 'TRUE',
-              currency: currency || 'USD',
-              description: description || '',
-              type: type || 'standard'
-            });
-          }
-          attributesMap.get(name).push(level);
+
+        const cleanName = (name || "").trim();
+        const cleanLevel = (level || "").trim();
+
+        // Skip rows with no attribute name
+        if (!cleanName) continue;
+
+        // Initialize attribute entry if first time seeing this attribute
+        if (!attributesMap.has(cleanName)) {
+          attributesMap.set(cleanName, []);
+          metadataMap.set(cleanName, {
+            isPriceAttribute: isPriceAttr === "TRUE",
+            currency: currency || "USD",
+            description: description || "",
+            type: type || "standard",
+          });
+        }
+
+        // Only push level if it exists
+        if (cleanLevel) {
+          attributesMap.get(cleanName).push(cleanLevel);
         }
       }
 
@@ -71,43 +77,34 @@ Deno.serve(async (req) => {
           name,
           levels,
           isPriceAttribute: metadata.isPriceAttribute || false,
-          currency: metadata.currency || 'USD',
-          description: metadata.description || '',
-          type: metadata.type || 'standard'
+          currency: metadata.currency || "USD",
+          description: metadata.description || "",
+          type: metadata.type || "standard",
         };
       });
 
       console.log(`Loaded ${attributes.length} attributes from Google Sheets`);
-      
-      return new Response(
-        JSON.stringify({ attributes }),
-        {
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-          status: 200,
-        }
-      );
+
+      return new Response(JSON.stringify({ attributes }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 200,
+      });
     } catch (googleError) {
-      console.warn('Google Sheets read failed, using in-memory storage:', googleError);
+      console.warn("Google Sheets read failed, using in-memory storage:", googleError);
       const attributes = getFromMemory(sheetId);
       console.log(`Loaded ${attributes.length} attributes from in-memory storage`);
-      
-      return new Response(
-        JSON.stringify({ attributes }),
-        {
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-          status: 200,
-        }
-      );
+
+      return new Response(JSON.stringify({ attributes }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 200,
+      });
     }
   } catch (error) {
-    console.error('Error getting attributes:', error);
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-    return new Response(
-      JSON.stringify({ error: errorMessage }),
-      {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 400,
-      }
-    );
+    console.error("Error getting attributes:", error);
+    const errorMessage = error instanceof Error ? error.message : "Unknown error";
+    return new Response(JSON.stringify({ error: errorMessage }), {
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+      status: 400,
+    });
   }
 });
