@@ -388,7 +388,7 @@ export const AnalysisTab = ({ projectKey }: AnalysisTabProps) => {
       setSuccessMessage(`Results saved to ${data.results.analysisTabName} tab in your Google Sheet`);
     } catch (err: any) {
       // Check if error is about no responses
-      if (err.message && err.message.toLowerCase().includes("no responses found")) {
+      if (err.message && (err.message.toLowerCase().includes("no responses found") || err.message.toLowerCase().includes("no survey responses"))) {
         setNoResponses(true);
       } else {
         toast({
@@ -589,13 +589,10 @@ export const AnalysisTab = ({ projectKey }: AnalysisTabProps) => {
 
         {!results && !loading && !noResponses && (
           <div className="mt-8 rounded-lg bg-muted/50 p-6">
-            <h3 className="mb-3 text-lg font-semibold">What This Does</h3>
-            <ul className="space-y-2 text-sm text-muted-foreground">
-              <li>• Reads all survey responses from your Google Sheet</li>
-              <li>• Calculates attribute importances (which features matter most)</li>
-              <li>• Estimates part-worth utilities for each attribute level</li>
-              <li>• Saves detailed results to a new Analysis tab in your sheet</li>
-            </ul>
+            <h3 className="mb-3 text-lg font-semibold">Sample Size Recommendations</h3>
+            <p className="text-sm text-muted-foreground mb-4">
+              These are general guidelines based on your survey configuration. Actual sample size needs may vary based on effect sizes and desired statistical power.
+            </p>
           </div>
         )}
       </Card>

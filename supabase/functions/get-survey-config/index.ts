@@ -21,7 +21,7 @@ Deno.serve(async (req) => {
     
     // Read from Config tab
     const response = await fetch(
-      `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/Config!A1:B3`,
+      `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/Config!A1:B4`,
       {
         headers: {
           Authorization: `Bearer ${token}`,
@@ -31,6 +31,7 @@ Deno.serve(async (req) => {
 
     let introduction = "";
     let question = "Which subscription plan would you prefer?";
+    let maxTasks = 5;
 
     if (response.ok) {
       const data = await response.json();
@@ -46,15 +47,19 @@ Deno.serve(async (req) => {
         if (rows[2] && rows[2][1]) {
           question = rows[2][1];
         }
+        // Row 4: Max Tasks
+        if (rows[3] && rows[3][1]) {
+          maxTasks = parseInt(rows[3][1]) || 5;
+        }
       }
     } else {
       console.warn('Config tab not found, using defaults');
     }
 
-    console.log(`Loaded config - introduction length: ${introduction.length}, question: ${question}`);
+    console.log(`Loaded config - introduction length: ${introduction.length}, question: ${question}, maxTasks: ${maxTasks}`);
 
     return new Response(
-      JSON.stringify({ introduction, question }),
+      JSON.stringify({ introduction, question, maxTasks }),
       {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 200,

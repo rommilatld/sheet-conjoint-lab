@@ -29,6 +29,7 @@ export const SurveyPreview = ({ attributes, projectKey }: SurveyPreviewProps) =>
   const [selectedOption, setSelectedOption] = useState<number | null>(null);
   const [introduction, setIntroduction] = useState("");
   const [question, setQuestion] = useState("Which subscription plan would you prefer?");
+  const [maxTasks, setMaxTasks] = useState(5);
   const [saving, setSaving] = useState(false);
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
@@ -63,10 +64,11 @@ export const SurveyPreview = ({ attributes, projectKey }: SurveyPreviewProps) =>
     const numAttributes = attributes.length;
     const maxLevels = Math.max(...attributes.map((attr) => attr.levels.length));
     const complexityFactor = Math.max(numAttributes, maxLevels * 0.5);
+    const taskMultiplier = maxTasks / 5; // Scale based on number of tasks
 
-    const high = Math.ceil(complexityFactor * 100);
-    const medium = Math.ceil(complexityFactor * 60);
-    const low = Math.ceil(complexityFactor * 30);
+    const high = Math.ceil(complexityFactor * 100 * taskMultiplier);
+    const medium = Math.ceil(complexityFactor * 60 * taskMultiplier);
+    const low = Math.ceil(complexityFactor * 30 * taskMultiplier);
 
     return {
       high: Math.max(300, Math.min(high, 1000)),
@@ -91,6 +93,7 @@ export const SurveyPreview = ({ attributes, projectKey }: SurveyPreviewProps) =>
       if (!error && data) {
         if (data.introduction) setIntroduction(data.introduction);
         if (data.question) setQuestion(data.question);
+        if (data.maxTasks) setMaxTasks(data.maxTasks);
       }
     } catch (error) {
       console.error("Failed to load config:", error);
@@ -113,7 +116,7 @@ export const SurveyPreview = ({ attributes, projectKey }: SurveyPreviewProps) =>
     setSaving(true);
     try {
       const { error } = await supabase.functions.invoke("save-survey-config", {
-        body: { projectKey, introduction: introduction.trim(), question: question.trim() },
+        body: { projectKey, introduction: introduction.trim(), question: question.trim(), maxTasks },
       });
 
       if (error) throw new Error(error.message || "Failed to save configuration");
@@ -199,6 +202,21 @@ export const SurveyPreview = ({ attributes, projectKey }: SurveyPreviewProps) =>
               />
             </div>
 
+            <div className="space-y-2">
+              <Label htmlFor="preview-max-tasks">Max Tasks Per Respondent</Label>
+              <Input
+                id="preview-max-tasks"
+                type="number"
+                min="1"
+                max="10"
+                value={maxTasks}
+                onChange={(e) => setMaxTasks(parseInt(e.target.value) || 5)}
+              />
+              <p className="text-xs text-muted-foreground">
+                How many choice sets each respondent will see (1-10)
+              </p>
+            </div>
+
             <Button
               onClick={saveConfig}
               disabled={saving || !introduction.trim() || !question.trim()}
@@ -224,6 +242,41 @@ export const SurveyPreview = ({ attributes, projectKey }: SurveyPreviewProps) =>
       <Card className="shadow-card p-8">
         <div className="mb-6">
           <h3 className="text-xl font-semibold mb-2">Survey Preview</h3>
+          <p className="text-sm text-muted-foreground">Preview how your survey will appear to respondents</p>
+        </div>
+
+        {/* Attributes and Sample Size Info */}
+        <div className="mb-6 p-4 bg-muted/30 rounded-lg">
+          <h4 className="font-semibold mb-3">Attributes in Survey</h4>
+          <div className="space-y-2 mb-4">
+            {attributes.map((attr, idx) => (
+              <div key={idx} className="flex justify-between items-center text-sm">
+                <span className="font-medium">{attr.name}</span>
+                <span className="text-muted-foreground">{attr.levels.length} levels</span>
+              </div>
+            ))}
+          </div>
+          
+          <div className="border-t border-border pt-4 mt-4">
+            <h4 className="font-semibold mb-2">Recommended Sample Sizes</h4>
+            <div className="space-y-1 text-sm">
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">90% Confidence:</span>
+                <span className="font-medium">{sampleSizes.high} respondents</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">80% Confidence:</span>
+                <span className="font-medium">{sampleSizes.medium} respondents</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">70% Confidence:</span>
+                <span className="font-medium">{sampleSizes.low} respondents</span>
+              </div>
+            </div>
+            <p className="text-xs text-muted-foreground mt-3">
+              Based on {attributes.length} attributes, max {Math.max(...attributes.map((a) => a.levels.length))} levels, and {maxTasks} tasks per respondent
+            </p>
+          </div>
         </div>
 
         {/* Table Preview */}

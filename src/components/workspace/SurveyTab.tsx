@@ -23,11 +23,27 @@ export const SurveyTab = ({ projectKey, onNavigate }: SurveyTabProps) => {
   const [surveys, setSurveys] = useState<Survey[]>([]);
   const [loading, setLoading] = useState(false);
   const [generating, setGenerating] = useState(false);
+  const [maxTasks, setMaxTasks] = useState<number>(5);
   const { toast } = useToast();
 
   useEffect(() => {
     loadSurveys();
+    loadConfig();
   }, [projectKey]);
+
+  const loadConfig = async () => {
+    try {
+      const { data, error } = await supabase.functions.invoke('get-survey-config', {
+        body: { projectKey },
+      });
+
+      if (!error && data) {
+        if (data.maxTasks) setMaxTasks(data.maxTasks);
+      }
+    } catch (error) {
+      console.error("Failed to load config:", error);
+    }
+  };
 
   const loadSurveys = async () => {
     setLoading(true);
@@ -146,8 +162,18 @@ export const SurveyTab = ({ projectKey, onNavigate }: SurveyTabProps) => {
         <div className="mb-6">
           <h2 className="text-2xl font-semibold mb-2">Generate Survey Link</h2>
           <p className="text-muted-foreground">
-            Create shareable links for respondents to take your survey. Configure survey text in the Preview tab.
+            Create shareable links for respondents to take your survey. Configure survey text and max tasks in the Preview tab.
           </p>
+        </div>
+
+        <div className="mb-6 p-4 bg-muted/30 rounded-lg">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="font-medium text-sm">Tasks per respondent</p>
+              <p className="text-xs text-muted-foreground">Configure this in the Preview tab</p>
+            </div>
+            <div className="text-2xl font-bold text-primary">{maxTasks}</div>
+          </div>
         </div>
 
         <Button
