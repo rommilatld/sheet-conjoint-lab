@@ -13,7 +13,7 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { projectKey, introduction, question } = await req.json();
+    const { projectKey, introduction, question, maxTasks } = await req.json();
     console.log('Saving survey config');
 
     const sheetId = await decryptProjectKey(projectKey);
@@ -50,8 +50,9 @@ Deno.serve(async (req) => {
     // Row 1: Headers
     // Row 2: Introduction
     // Row 3: Question
+    // Row 4: Max Tasks
     await fetch(
-      `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/Config!A1:B3?valueInputOption=RAW`,
+      `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/Config!A1:B4?valueInputOption=RAW`,
       {
         method: 'PUT',
         headers: {
@@ -63,6 +64,7 @@ Deno.serve(async (req) => {
             ['Setting', 'Value'],
             ['Introduction', introduction],
             ['Question', question],
+            ['Max Tasks', maxTasks || 5],
           ],
         }),
       }

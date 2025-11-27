@@ -320,28 +320,36 @@ const SurveyResponse = () => {
                 </table>
               </div>
 
-              {/* ---- SELECTION BUTTONS ---- */}
-              <div className="mb-6">
-                <Label className="text-base font-semibold mb-3 block">Select your choice:</Label>
-                <div className="flex flex-wrap gap-3">
-                  {Array.from({ length: numOptions }, (_, i) => (
-                    <Button
-                      key={i}
-                      variant={selectedOption === i ? "default" : "outline"}
-                      className={`flex-1 min-w-[120px] ${selectedOption === i ? "gradient-primary" : ""}`}
-                      onClick={() => setSelectedOption(i)}
-                    >
-                      Option {String.fromCharCode(65 + i)}
-                    </Button>
-                  ))}
-                  <Button
-                    variant={selectedOption === numOptions ? "default" : "outline"}
-                    className={`flex-1 min-w-[120px] ${selectedOption === numOptions ? "gradient-primary" : ""}`}
-                    onClick={() => setSelectedOption(numOptions)}
-                  >
-                    None of these
-                  </Button>
-                </div>
+              {/* ---- SELECTION BUTTONS UNDER COLUMNS ---- */}
+              <div className="overflow-x-auto mb-6">
+                <table className="w-full border-collapse">
+                  <thead>
+                    <tr>
+                      <th className="p-3"></th>
+                      <th className="p-3"></th>
+                      {Array.from({ length: numOptions }, (_, i) => (
+                        <th key={i} className="p-3">
+                          <Button
+                            variant={selectedOption === i ? "default" : "outline"}
+                            className={`w-full ${selectedOption === i ? "gradient-primary" : ""}`}
+                            onClick={() => setSelectedOption(i)}
+                          >
+                            Select {String.fromCharCode(65 + i)}
+                          </Button>
+                        </th>
+                      ))}
+                      <th className="p-3">
+                        <Button
+                          variant={selectedOption === numOptions ? "default" : "outline"}
+                          className={`w-full ${selectedOption === numOptions ? "gradient-primary" : ""}`}
+                          onClick={() => setSelectedOption(numOptions)}
+                        >
+                          Select None
+                        </Button>
+                      </th>
+                    </tr>
+                  </thead>
+                </table>
               </div>
 
               {/* ---- DONATION SECTION ---- */}

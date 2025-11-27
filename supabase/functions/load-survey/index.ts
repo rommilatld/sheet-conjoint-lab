@@ -72,7 +72,7 @@ function generateRandomTasks(attributes: any[], numTasks: number, numAlternative
     const alternatives: any[] = [];
 
     for (let a = 0; a < numAlternatives; a++) {
-      let alt;
+      let alt: Record<string, string> = {};
 
       let attempts = 0;
       do {
@@ -88,7 +88,7 @@ function generateRandomTasks(attributes: any[], numTasks: number, numAlternative
     }
 
     // None of these
-    const none = {};
+    const none: Record<string, string> = {};
     attributes.forEach((attr: any) => {
       none[attr.name] = mapLevelToIcon("None of these");
     });
@@ -137,7 +137,7 @@ Deno.serve(async (req) => {
     /* -------------------------------------------------------
        LOAD ATTRIBUTES
     ------------------------------------------------------- */
-    const attrRes = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/Attributes!A:B`, {
+    const attrRes = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/Attributes!A:F`, {
       headers: { Authorization: `Bearer ${token}` },
     });
     if (!attrRes.ok) throw new Error("Failed to read attributes");
@@ -145,20 +145,24 @@ Deno.serve(async (req) => {
     const attrData = await attrRes.json();
     const rows = attrData.values || [];
 
-    const attributesMap = new Map<string, string[]>();
+    const attributesMap = new Map<string, any>();
 
     for (let i = 1; i < rows.length; i++) {
-      const [name, level] = rows[i];
+      const [name, level, isPriceAttr, currency, description, type] = rows[i];
       if (!name || !level) continue;
 
-      if (!attributesMap.has(name)) attributesMap.set(name, []);
-      attributesMap.get(name)!.push(level);
+      if (!attributesMap.has(name)) {
+        attributesMap.set(name, {
+          name,
+          levels: [],
+          description: description || "",
+          type: type || "standard",
+        });
+      }
+      attributesMap.get(name)!.levels.push(level);
     }
 
-    const attributes = Array.from(attributesMap.entries()).map(([name, levels]) => ({
-      name,
-      levels,
-    }));
+    const attributes = Array.from(attributesMap.values());
 
     if (attributes.length === 0) throw new Error("No attributes configured");
 
@@ -260,7 +264,8 @@ Deno.serve(async (req) => {
       status: 200,
     });
   } catch (error) {
-    return new Response(JSON.stringify({ error: error.message || "Unknown error" }), {
+    const errorMessage = error instanceof Error ? error.message : "Unknown error";
+    return new Response(JSON.stringify({ error: errorMessage }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
       status: 400,
     });
