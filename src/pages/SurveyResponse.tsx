@@ -307,7 +307,17 @@ const SurveyResponse = () => {
                         <td className="p-3 text-sm text-muted-foreground">{attr.description || ""}</td>
 
                         {currentTaskData.alternatives.slice(0, numOptions).map((alt, altIdx) => {
-                          const value = alt[attr.name];
+                          // Normalize the attribute name
+                          const normalizedAttr = attr.name?.trim().toLowerCase();
+
+                          // Normalize the alternative keys (e.g. remove spaces, lowercase)
+                          const normalizedAlt = Object.fromEntries(
+                            Object.entries(alt).map(([key, val]) => [key.trim().toLowerCase(), val]),
+                          );
+
+                          // Lookup using normalized key
+                          const value = normalizedAlt[normalizedAttr];
+
                           return (
                             <td key={altIdx} className="p-3 text-center">
                               {renderColored(value)}
