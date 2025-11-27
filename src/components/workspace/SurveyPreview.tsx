@@ -212,9 +212,7 @@ export const SurveyPreview = ({ attributes, projectKey }: SurveyPreviewProps) =>
                 value={maxTasks}
                 onChange={(e) => setMaxTasks(parseInt(e.target.value) || 5)}
               />
-              <p className="text-xs text-muted-foreground">
-                How many choice sets each respondent will see (1-10)
-              </p>
+              <p className="text-xs text-muted-foreground">How many choice sets each respondent will see (1-10)</p>
             </div>
 
             <Button
@@ -272,7 +270,7 @@ export const SurveyPreview = ({ attributes, projectKey }: SurveyPreviewProps) =>
                 <th className="text-left p-3 font-semibold">Description</th>
                 {Array.from({ length: numOptions }, (_, i) => (
                   <th key={i} className="text-center p-3 font-semibold">
-                    Option {String.fromCharCode(65 + i)}
+                    {/*             Option {String.fromCharCode(65 + i)} Table Preview */}
                   </th>
                 ))}
                 <th className="text-center p-3 font-semibold">None</th>
@@ -345,12 +343,7 @@ export const SurveyPreview = ({ attributes, projectKey }: SurveyPreviewProps) =>
               <div className="flex-1 max-w-xs">
                 <div className="relative">
                   <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">$</span>
-                  <Input
-                    type="number"
-                    placeholder="0.00"
-                    disabled
-                    className="pl-7"
-                  />
+                  <Input type="number" placeholder="0.00" disabled className="pl-7" />
                 </div>
               </div>
               <Button variant="outline" disabled>
