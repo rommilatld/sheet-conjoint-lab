@@ -1,6 +1,4 @@
-(You can download the full text by copying this entire block into a txt file)
-
-<BEGIN FILE>
+[BEGIN FILE]
 
 // @ts-ignore - Supabase edge runtime types
 
@@ -18,7 +16,6 @@ async function decryptSurveyToken(token: string): Promise<{ sheetId: string; sur
   }
 
   try {
-    // Convert base64url → base64
     let base64 = token.replace(/-/g, '+').replace(/_/g, '/');
     while (base64.length % 4 !== 0) base64 += '=';
 
@@ -71,13 +68,8 @@ Deno.serve(async (req) => {
     const gsToken = await getGoogleSheetsToken();
     const timestamp = new Date().toISOString();
 
-    if (type === "donation") {
-      // omitted to save space — unchanged
-    }
+    // donation handling omitted
 
-    // -------------------------
-    // Regular Survey Responses
-    // -------------------------
     const { responses } = body;
     const responseId = `response_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
 
@@ -92,21 +84,18 @@ Deno.serve(async (req) => {
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({
-            requests: [
-              {
-                addSheet: { properties: { title: 'Responses' } }
-              }
-            ]
+            requests: [{ addSheet: { properties: { title: 'Responses' } } }]
           })
         }
       );
-    } catch (_) {} // ignore; sheet may exist
+    } catch (_) {}
 
-    // Write header if missing
+    // Write header if needed
     const headerResponse = await fetch(
       `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/Responses!A1:E1`,
       { headers: { Authorization: `Bearer ${gsToken}` } }
     );
+
     const headerData = await headerResponse.json();
     if (!headerData.values || headerData.values.length === 0) {
       await fetch(
@@ -124,12 +113,11 @@ Deno.serve(async (req) => {
       );
     }
 
-    // -------------------------
-    // FIXED TASK ID MAPPING
-    // -------------------------
+    // FIXED: Correct TaskID mapping
     const rows = Object.entries(responses).map(([taskIndex, selectedAlt]) => {
 
-      const fixedTaskId = `survey_${surveyId}_task${Number(taskIndex) + 1}`;
+      // Correct: DO NOT add "survey_"
+      const fixedTaskId = `${surveyId}_task${Number(taskIndex) + 1}`;
 
       return [
         responseId,
@@ -140,7 +128,6 @@ Deno.serve(async (req) => {
       ];
     });
 
-    // Append
     await fetch(
       `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/Responses!A:E:append?valueInputOption=RAW`,
       {
@@ -153,7 +140,7 @@ Deno.serve(async (req) => {
       }
     );
 
-    console.log(`Recorded ${rows.length} task responses to Google Sheets`);
+    console.log(`Recorded ${rows.length} responses`);
 
     return new Response(JSON.stringify({ success: true }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -169,4 +156,4 @@ Deno.serve(async (req) => {
   }
 });
 
-<END FILE>
+[END FILE]
