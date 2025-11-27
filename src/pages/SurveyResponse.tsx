@@ -296,7 +296,7 @@ const SurveyResponse = () => {
                           Option {String.fromCharCode(65 + i)}
                         </th>
                       ))}
-                      {/* --- <th className="text-center p-3 font-semibold">None</th> 
+                      {/* --- <th className="text-center p-3 font-semibold">None</th> */}
                     </tr>
                   </thead>
 
@@ -315,7 +315,7 @@ const SurveyResponse = () => {
                           );
                         })}
 
-                {/* Table Preview         <td className="p-3 text-center text-muted-foreground text-sm">-</td>*/}
+                        {/* Table Preview         <td className="p-3 text-center text-muted-foreground text-sm">-</td>*/}
                       </tr>
                     ))}
                   </tbody>
