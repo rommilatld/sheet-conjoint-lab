@@ -307,20 +307,48 @@ const SurveyResponse = () => {
                         <td className="p-3 text-sm text-muted-foreground">{attr.description || ""}</td>
 
                         {currentTaskData.alternatives.slice(0, numOptions).map((alt, altIdx) => {
-                          // Normalize attribute name
-                          const normalizedAttr = attr.name?.trim().toLowerCase();
+                          const rawAttrName = attr.name ?? "";
+                          const attrNorm = rawAttrName
+                            .trim()
+                            .toLowerCase()
+                            .replace(/[^a-z0-9]/g, "");
 
                           // Normalize alternative keys
-                          const normalizedAlt = Object.fromEntries(
-                            Object.entries(alt).map(([key, val]) => [key.trim().toLowerCase(), val ?? ""]),
-                          );
+                          const altEntries = Object.entries(alt).map(([k, v]) => {
+                            const normalizedKey = k
+                              .trim()
+                              .toLowerCase()
+                              .replace(/[^a-z0-9]/g, "");
+                            return [normalizedKey, v];
+                          });
+                          const altNorm = Object.fromEntries(altEntries);
 
-                          // Lookup using normalized key
-                          let value = normalizedAlt[normalizedAttr];
+                          let value: any = null;
 
-                          // Prevent blank cells (React collapses empty <td>s on refresh)
+                          // 1) Exact normalized match
+                          if (altNorm[attrNorm] !== undefined) {
+                            value = altNorm[attrNorm];
+                          } else {
+                            // 2) Loose match (A contains B or B contains A)
+                            const looseMatch = Object.keys(altNorm).find(
+                              (k) => k.includes(attrNorm) || attrNorm.includes(k),
+                            );
+
+                            // 3) Fuzzy match (first 4 chars match)
+                            const fuzzyMatch =
+                              looseMatch ||
+                              Object.keys(altNorm).find(
+                                (k) => k.startsWith(attrNorm.slice(0, 4)) || attrNorm.startsWith(k.slice(0, 4)),
+                              );
+
+                            if (fuzzyMatch) {
+                              value = altNorm[fuzzyMatch];
+                            }
+                          }
+
+                          // 4) Final fail-safe
                           if (value === undefined || value === null || value === "") {
-                            value = "-"; // fallback to visible placeholder
+                            value = "-"; // prevents disappearing rows
                           }
 
                           return (
