@@ -306,7 +306,7 @@ export const SurveyPreview = ({ attributes, projectKey }: SurveyPreviewProps) =>
           <table className="w-full border-collapse">
             <tbody>
               <tr>
-                <td className="p-3"></td>
+                <td className="p-3">Which would you buy?</td>
                 <td className="p-3"></td>
                 {Array.from({ length: numOptions }, (_, i) => (
                   <td key={i} className="p-3">
