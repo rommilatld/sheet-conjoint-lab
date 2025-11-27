@@ -7,55 +7,6 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-async function ensureTabExists(sheetId: string, token: string, tabName: string) {
-  // Check if tab exists
-  const sheetResponse = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${sheetId}`, {
-    headers: {
-      Authorization: `Bearer ${token}`,
-    },
-  });
-
-  if (!sheetResponse.ok) {
-    throw new Error("Failed to access spreadsheet");
-  }
-
-  const sheetData = await sheetResponse.json();
-  const existingSheets = sheetData.sheets || [];
-  const tabExists = existingSheets.some((sheet: any) => sheet.properties.title === tabName);
-
-  if (!tabExists) {
-    console.log(`Creating ${tabName} tab...`);
-    const createResponse = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${sheetId}:batchUpdate`, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${token}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        requests: [
-          {
-            addSheet: {
-              properties: {
-                title: tabName,
-                gridProperties: {
-                  rowCount: 1000,
-                  columnCount: 26,
-                },
-              },
-            },
-          },
-        ],
-      }),
-    });
-
-    if (!createResponse.ok) {
-      const error = await createResponse.text();
-      throw new Error(`Failed to create ${tabName} tab: ${error}`);
-    }
-    console.log(`${tabName} tab created successfully`);
-  }
-}
-
 interface Response {
   responseId: string;
   surveyId: string;
@@ -407,9 +358,6 @@ Deno.serve(async (req) => {
     const sheetId = await decryptProjectKey(projectKey);
     const token = await getGoogleSheetsToken();
 
-    // Ensure Attributes tab exists (will create if missing)
-    await ensureTabExists(sheetId, token, "Attributes");
-
     // -----------------------------
     // READ & PARSE ATTRIBUTES TAB
     // -----------------------------
@@ -438,7 +386,7 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Robust attribute parsing (handles merged cells, like get-attributes)
+    // Robust attribute parsing (handles merged cells)
     const attributesMap = new Map<string, string[]>();
     const priceInfo = new Map<
       string,
@@ -573,46 +521,9 @@ Deno.serve(async (req) => {
     const designMap = new Map<string, Map<number, Map<string, string>>>();
     const noneAlternatives = new Map<string, number>();
 
-    // Get attribute names from header (columns 2+)
-    const headerAttrNames = designRows[0].slice(2);
-
-    // Map raw Design headers to canonical attribute names from Attributes tab
-    const designAttrToCanonical: Record<string, string> = {};
-    const attributesLower = attributes.map((a) => ({
-      name: a.name,
-      lower: a.name.trim().toLowerCase(),
-    }));
-
-    headerAttrNames.forEach((header) => {
-      const raw = (header || "").trim();
-      if (!raw) return;
-      const lower = raw.toLowerCase();
-
-      // 1. Exact match (case-insensitive)
-      let match = attributesLower.find((a) => a.lower === lower);
-      if (match) {
-        designAttrToCanonical[raw] = match.name;
-        return;
-      }
-
-      // 2. Header starts with attribute name, eg "Pricing per YEAR (USD)" vs "Pricing"
-      match = attributesLower.find((a) => lower.startsWith(a.lower));
-      if (match) {
-        designAttrToCanonical[raw] = match.name;
-        return;
-      }
-
-      // 3. Attribute name starts with header (reverse case)
-      match = attributesLower.find((a) => a.lower.startsWith(lower));
-      if (match) {
-        designAttrToCanonical[raw] = match.name;
-        return;
-      }
-
-      // If none matched, we leave this header unmapped and ignore that column later
-    });
-
-    console.log("Design header mapping:", designAttrToCanonical);
+    // Use attribute names from current Attributes config instead of the Design sheet header.
+    // This keeps analysis consistent even if the Design tab header is stale or labels were renamed.
+    const attrNames = attributes.map((a) => a.name);
 
     // Skip header and parse design
     for (let i = 1; i < designRows.length; i++) {
@@ -631,14 +542,12 @@ Deno.serve(async (req) => {
       const altLevels = new Map<string, string>();
       let isNoneAlt = true;
 
-      for (let j = 0; j < headerAttrNames.length && j < row.length - 2; j++) {
-        const headerName = headerAttrNames[j];
-        const canonicalName = designAttrToCanonical[headerName];
+      for (let j = 0; j < attrNames.length and (j + 2) < row.length; j++) {
+        const attrName = attrNames[j];
         const level = row[j + 2];
 
-        // Only use columns we can map back to a known attribute
-        if (canonicalName && level) {
-          altLevels.set(canonicalName, level);
+        if (attrName && level) {
+          altLevels.set(attrName, level);
           if (level !== "None of these") {
             isNoneAlt = false;
           }
@@ -735,7 +644,7 @@ Deno.serve(async (req) => {
           const amounts = donateRows
             .slice(1)
             .map((row: string[]) => parseFloat(row[2]))
-            .filter((amount: number) => !isNaN(amount) && amount > 0);
+            .filter((amount: number) => !isNaN(amount) and amount > 0);
 
           if (amounts.length > 0) {
             const sum = amounts.reduce((a: number, b: number) => a + b, 0);
@@ -754,10 +663,17 @@ Deno.serve(async (req) => {
     }
 
     // Run analysis with design data
-    const results = runConjointAnalysis(responses, attributes, designMap, numPlans, pricingStrategy, goal);
+    const { utilities, importances, plans, currency, priceMismatchWarning } = runConjointAnalysis(
+      responses,
+      attributes,
+      designMap,
+      numPlans,
+      pricingStrategy,
+      goal,
+    );
 
     // Override totalResponses with unique count
-    results.totalResponses = totalUniqueResponses;
+    const totalUnique = new Set(responses.map((r) => r.responseId)).size;
 
     // Create analysis timestamp
     const timestamp = new Date().toISOString().replace(/[:.]/g, "-").split("T")[0];
@@ -788,10 +704,10 @@ Deno.serve(async (req) => {
     }
 
     // Write analysis results
-    const analysisRows = [
+    const analysisRows: any[] = [
       ["Conjoint Analysis Results"],
       [""],
-      ["Total Unique Respondents:", results.totalResponses.toString()],
+      ["Total Unique Respondents:", totalUnique.toString()],
       ["Analysis Date:", new Date().toLocaleString()],
       [""],
       ["Sample Size Guidance (Orme CBC rule, approximate)"],
@@ -808,30 +724,34 @@ Deno.serve(async (req) => {
       ["Attribute", "Importance (%)"],
     ];
 
-    Object.entries(results.importances).forEach(([attr, imp]) => {
-      analysisRows.push([attr, imp.toFixed(2)]);
+    Object.entries(importances).forEach(([attr, imp]) => {
+      analysisRows.push([attr, (imp as number).toFixed(2)]);
     });
 
     analysisRows.push([""], ["Attribute Level Utilities"], ["Attribute:Level", "Utility"]);
 
-    Object.entries(results.utilities).forEach(([key, util]) => {
-      analysisRows.push([key, util.toFixed(3)]);
+    Object.entries(utilities).forEach(([key, util]) => {
+      analysisRows.push([key, (util as number).toFixed(3)]);
     });
 
     // Add plans section
-    if (results.plans && results.plans.length > 0) {
+    if (plans && plans.length > 0) {
       analysisRows.push(
         [""],
         ["Recommended Plans"],
         ["Plan Name", "Suggested Price", "Willingness to Pay", "Features"],
       );
 
-      results.plans.forEach((plan) => {
+      plans.forEach((plan: any) => {
         const featuresStr = Object.entries(plan.features)
           .map(([attr, level]) => `${attr}: ${level}`)
           .join("; ");
         analysisRows.push([plan.name, `$${plan.suggestedPrice}`, `$${plan.willingnessToPay.toFixed(2)}`, featuresStr]);
       });
+
+      if (priceMismatchWarning) {
+        analysisRows.push([""], ["Notes"], [priceMismatchWarning]);
+      }
     }
 
     // Add donation statistics if available
@@ -864,13 +784,13 @@ Deno.serve(async (req) => {
       JSON.stringify({
         success: true,
         results: {
-          importances: results.importances,
-          utilities: results.utilities,
-          totalResponses: results.totalResponses,
+          importances,
+          utilities,
+          totalResponses: totalUnique,
           analysisTabName,
-          plans: results.plans,
-          currency: results.currency,
-          priceMismatchWarning: results.priceMismatchWarning,
+          plans,
+          currency,
+          priceMismatchWarning,
           donationData,
           sampleSize,
         },
