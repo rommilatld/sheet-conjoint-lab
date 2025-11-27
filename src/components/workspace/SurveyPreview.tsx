@@ -240,43 +240,27 @@ export const SurveyPreview = ({ attributes, projectKey }: SurveyPreviewProps) =>
       </Card>
 
       <Card className="shadow-card p-8">
-        <div className="mb-6">
-          <h3 className="text-xl font-semibold mb-2">Survey Preview</h3>
-          <p className="text-sm text-muted-foreground">Preview how your survey will appear to respondents</p>
+        <div className="mb-8">
+          <h1 className="mb-4 text-3xl font-bold">Research Survey</h1>
+
+          {introduction && introduction.trim() && (
+            <div className="mb-6 text-base text-muted-foreground whitespace-pre-line leading-relaxed">
+              {introduction}
+            </div>
+          )}
         </div>
 
-        {/* Attributes and Sample Size Info */}
-        <div className="mb-6 p-4 bg-muted/30 rounded-lg">
-          <h4 className="font-semibold mb-3">Attributes in Survey</h4>
-          <div className="space-y-2 mb-4">
-            {attributes.map((attr, idx) => (
-              <div key={idx} className="flex justify-between items-center text-sm">
-                <span className="font-medium">{attr.name}</span>
-                <span className="text-muted-foreground">{attr.levels.length} levels</span>
-              </div>
-            ))}
-          </div>
-          
-          <div className="border-t border-border pt-4 mt-4">
-            <h4 className="font-semibold mb-2">Recommended Sample Sizes</h4>
-            <div className="space-y-1 text-sm">
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">90% Confidence:</span>
-                <span className="font-medium">{sampleSizes.high} respondents</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">80% Confidence:</span>
-                <span className="font-medium">{sampleSizes.medium} respondents</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">70% Confidence:</span>
-                <span className="font-medium">{sampleSizes.low} respondents</span>
-              </div>
+        <div className="mb-6">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-xl font-semibold">
+              Task {currentTask + 1} of {tasks.length}
+            </h3>
+            <div className="text-sm text-muted-foreground">
+              {Math.round((currentTask / tasks.length) * 100)}% complete
             </div>
-            <p className="text-xs text-muted-foreground mt-3">
-              Based on {attributes.length} attributes, max {Math.max(...attributes.map((a) => a.levels.length))} levels, and {maxTasks} tasks per respondent
-            </p>
           </div>
+
+          <p className="text-base font-medium text-foreground mb-6">{question}</p>
         </div>
 
         {/* Table Preview */}
@@ -319,27 +303,63 @@ export const SurveyPreview = ({ attributes, projectKey }: SurveyPreviewProps) =>
           </table>
         </div>
 
-        {/* Selection Buttons Preview */}
-        <div className="mb-6">
-          <Label className="text-base font-semibold mb-3 block">Select your choice:</Label>
-          <div className="flex flex-wrap gap-3">
-            {Array.from({ length: numOptions }, (_, i) => (
-              <Button
-                key={i}
-                variant={selectedOption === i ? "default" : "outline"}
-                className={`flex-1 min-w-[120px] ${selectedOption === i ? "gradient-primary" : ""}`}
-                onClick={() => setSelectedOption(i)}
-              >
-                Option {String.fromCharCode(65 + i)}
+        {/* Selection Buttons Under Columns */}
+        <div className="overflow-x-auto mb-6">
+          <table className="w-full border-collapse">
+            <tbody>
+              <tr>
+                <td className="p-3"></td>
+                <td className="p-3"></td>
+                {Array.from({ length: numOptions }, (_, i) => (
+                  <td key={i} className="p-3">
+                    <Button
+                      variant={selectedOption === i ? "default" : "outline"}
+                      className={`w-full ${selectedOption === i ? "gradient-primary" : ""}`}
+                      onClick={() => setSelectedOption(i)}
+                    >
+                      Select {String.fromCharCode(65 + i)}
+                    </Button>
+                  </td>
+                ))}
+                <td className="p-3">
+                  <Button
+                    variant={selectedOption === numOptions ? "default" : "outline"}
+                    className={`w-full ${selectedOption === numOptions ? "gradient-primary" : ""}`}
+                    onClick={() => setSelectedOption(numOptions)}
+                  >
+                    Select None
+                  </Button>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        {/* Donation Section Preview */}
+        <div className="border-t-2 border-border pt-6 mt-8">
+          <div className="bg-muted/30 rounded-lg p-6">
+            <Label className="text-base font-semibold mb-3 block">
+              Instead of subscribing, I'd rather donate this amount
+            </Label>
+            <div className="flex gap-3 items-end">
+              <div className="flex-1 max-w-xs">
+                <div className="relative">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">$</span>
+                  <Input
+                    type="number"
+                    placeholder="0.00"
+                    disabled
+                    className="pl-7"
+                  />
+                </div>
+              </div>
+              <Button variant="outline" disabled>
+                Submit
               </Button>
-            ))}
-            <Button
-              variant={selectedOption === numOptions ? "default" : "outline"}
-              className={`flex-1 min-w-[120px] ${selectedOption === numOptions ? "gradient-primary" : ""}`}
-              onClick={() => setSelectedOption(numOptions)}
-            >
-              None of these
-            </Button>
+            </div>
+            <p className="text-xs text-muted-foreground mt-2">
+              Submitting a donation suggestion will end the survey immediately
+            </p>
           </div>
         </div>
 

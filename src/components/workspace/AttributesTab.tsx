@@ -6,6 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Loader2, Plus, Trash2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
@@ -217,61 +218,79 @@ export const AttributesTab = ({ projectKey, onNavigate }: AttributesTabProps) =>
                   <p className="mt-1 text-xs text-muted-foreground">This will appear in the survey table</p>
                 </div>
 
-                <div>
-                  <Label htmlFor={`attr-type-${attrIndex}`}>Attribute Type</Label>
-                  <Select
-                    value={attr.type || "standard"}
-                    onValueChange={(value) => updateAttributeType(attrIndex, value as "standard" | "included-not-included")}
-                  >
-                    <SelectTrigger id={`attr-type-${attrIndex}`} className="mt-1.5">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="standard">Standard</SelectItem>
-                      <SelectItem value="included-not-included">Included/Not-Included</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <p className="mt-1 text-xs text-muted-foreground">
-                    {attr.type === "included-not-included" 
-                      ? "Levels auto-set to Not Included and Included" 
-                      : "Customize your own levels"}
-                  </p>
-                </div>
-
-                <div className="flex items-center gap-4 p-3 rounded-lg bg-muted/30">
-                  <div className="flex items-center space-x-2">
-                    <Checkbox
-                      id={`price-${attrIndex}`}
-                      checked={attr.isPriceAttribute || false}
-                      onCheckedChange={(checked) => togglePriceAttribute(attrIndex, checked as boolean)}
-                    />
-                    <Label htmlFor={`price-${attrIndex}`} className="text-sm font-medium cursor-pointer">
-                      Price Attribute
-                    </Label>
-                  </div>
-                  {attr.isPriceAttribute && (
-                    <div className="flex items-center gap-2">
-                      <Label htmlFor={`currency-${attrIndex}`} className="text-sm">
-                        Currency:
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="flex items-center gap-4 p-3 rounded-lg bg-muted/30">
+                    <div className="flex items-center space-x-2">
+                      <Checkbox
+                        id={`price-${attrIndex}`}
+                        checked={attr.isPriceAttribute || false}
+                        onCheckedChange={(checked) => togglePriceAttribute(attrIndex, checked as boolean)}
+                      />
+                      <Label htmlFor={`price-${attrIndex}`} className="text-sm font-medium cursor-pointer">
+                        Price Attribute
                       </Label>
-                      <Select
-                        value={attr.currency || "USD"}
-                        onValueChange={(value) => updateCurrency(attrIndex, value)}
-                      >
-                        <SelectTrigger id={`currency-${attrIndex}`} className="w-24">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="USD">USD</SelectItem>
-                          <SelectItem value="EUR">EUR</SelectItem>
-                          <SelectItem value="GBP">GBP</SelectItem>
-                          <SelectItem value="JPY">JPY</SelectItem>
-                          <SelectItem value="CAD">CAD</SelectItem>
-                          <SelectItem value="AUD">AUD</SelectItem>
-                        </SelectContent>
-                      </Select>
                     </div>
-                  )}
+                    {attr.isPriceAttribute && (
+                      <div className="flex items-center gap-2">
+                        <Label htmlFor={`currency-${attrIndex}`} className="text-sm">
+                          Currency:
+                        </Label>
+                        <Select
+                          value={attr.currency || "USD"}
+                          onValueChange={(value) => updateCurrency(attrIndex, value)}
+                        >
+                          <SelectTrigger id={`currency-${attrIndex}`} className="w-24">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="USD">USD</SelectItem>
+                            <SelectItem value="EUR">EUR</SelectItem>
+                            <SelectItem value="GBP">GBP</SelectItem>
+                            <SelectItem value="JPY">JPY</SelectItem>
+                            <SelectItem value="CAD">CAD</SelectItem>
+                            <SelectItem value="AUD">AUD</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="p-3 rounded-lg bg-muted/30">
+                    <Label className="text-sm mb-2 block">Attribute Type</Label>
+                    <div className="flex gap-4">
+                      <div className="flex items-center space-x-2">
+                        <input
+                          type="radio"
+                          id={`type-standard-${attrIndex}`}
+                          name={`type-${attrIndex}`}
+                          checked={attr.type === "standard" || !attr.type}
+                          onChange={() => updateAttributeType(attrIndex, "standard")}
+                          className="cursor-pointer"
+                        />
+                        <Label htmlFor={`type-standard-${attrIndex}`} className="text-sm cursor-pointer">
+                          Standard
+                        </Label>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <input
+                          type="radio"
+                          id={`type-included-${attrIndex}`}
+                          name={`type-${attrIndex}`}
+                          checked={attr.type === "included-not-included"}
+                          onChange={() => updateAttributeType(attrIndex, "included-not-included")}
+                          className="cursor-pointer"
+                        />
+                        <Label htmlFor={`type-included-${attrIndex}`} className="text-sm cursor-pointer">
+                          Included/Not-Included
+                        </Label>
+                      </div>
+                    </div>
+                    <p className="mt-2 text-xs text-muted-foreground">
+                      {attr.type === "included-not-included" 
+                        ? "Levels auto-set to checkmarks" 
+                        : "Customize your own levels"}
+                    </p>
+                  </div>
                 </div>
 
                 <div className="space-y-2">

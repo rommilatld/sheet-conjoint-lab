@@ -12,6 +12,11 @@ interface AnalysisTabProps {
   projectKey: string;
 }
 
+interface Attribute {
+  name: string;
+  levels: string[];
+}
+
 interface Plan {
   name: string;
   features: { [key: string]: string };
@@ -42,11 +47,13 @@ export const AnalysisTab = ({ projectKey }: AnalysisTabProps) => {
   const [numPlans, setNumPlans] = useState<number>(3);
   const [pricingStrategy, setPricingStrategy] = useState<"submitted" | "suggested">("suggested");
   const [goal, setGoal] = useState<"revenue" | "purchases">("revenue");
-  const [noResponses, setNoResponses] = useState(false);
+  const [error, setError] = useState<string>("");
   const [priceWarning, setPriceWarning] = useState<string>("");
   const [successMessage, setSuccessMessage] = useState<string>("");
   const [checkingDesign, setCheckingDesign] = useState(true);
   const [designExists, setDesignExists] = useState(false);
+  const [attributes, setAttributes] = useState<Attribute[]>([]);
+  const [maxTasks, setMaxTasks] = useState<number>(5);
   const { toast } = useToast();
 
   // Check if Design tab exists (survey links have been generated)
@@ -75,27 +82,57 @@ export const AnalysisTab = ({ projectKey }: AnalysisTabProps) => {
     checkDesignTab();
   }, [projectKey]);
 
-  // Fetch attributes to set default number of plans based on pricing levels
+  // Fetch attributes and maxTasks
   useEffect(() => {
-    const fetchPricingLevels = async () => {
+    const fetchData = async () => {
       try {
-        const { data, error } = await supabase.functions.invoke("get-attributes", {
-          body: { projectKey },
-        });
+        const [attrResult, configResult] = await Promise.all([
+          supabase.functions.invoke("get-attributes", {
+            body: { projectKey },
+          }),
+          supabase.functions.invoke("get-survey-config", {
+            body: { projectKey },
+          }),
+        ]);
 
-        if (!error && data?.attributes) {
-          const pricingAttr = data.attributes.find((attr: any) => attr.isPriceAttribute);
+        if (!attrResult.error && attrResult.data?.attributes) {
+          setAttributes(attrResult.data.attributes);
+          const pricingAttr = attrResult.data.attributes.find((attr: any) => attr.isPriceAttribute);
           if (pricingAttr && pricingAttr.levels && pricingAttr.levels.length > 0) {
             setNumPlans(pricingAttr.levels.length);
           }
         }
+
+        if (!configResult.error && configResult.data) {
+          if (configResult.data.maxTasks) setMaxTasks(configResult.data.maxTasks);
+        }
       } catch (err) {
-        console.error("Error fetching pricing levels:", err);
+        console.error("Error fetching data:", err);
       }
     };
 
-    fetchPricingLevels();
+    fetchData();
   }, [projectKey]);
+
+  // Calculate recommended sample sizes
+  const calculateSampleSizes = () => {
+    const numAttributes = attributes.length;
+    const maxLevels = Math.max(...attributes.map((attr) => attr.levels.length), 1);
+    const complexityFactor = Math.max(numAttributes, maxLevels * 0.5);
+    const taskMultiplier = maxTasks / 5;
+
+    const high = Math.ceil(complexityFactor * 100 * taskMultiplier);
+    const medium = Math.ceil(complexityFactor * 60 * taskMultiplier);
+    const low = Math.ceil(complexityFactor * 30 * taskMultiplier);
+
+    return {
+      high: Math.max(300, Math.min(high, 1000)),
+      medium: Math.max(200, Math.min(medium, 600)),
+      low: Math.max(100, Math.min(low, 300)),
+    };
+  };
+
+  const sampleSizes = attributes.length > 0 ? calculateSampleSizes() : { high: 300, medium: 200, low: 100 };
 
   const downloadPDF = () => {
     if (!results) return;
@@ -356,7 +393,7 @@ export const AnalysisTab = ({ projectKey }: AnalysisTabProps) => {
 
   const runAnalysis = async () => {
     setLoading(true);
-    setNoResponses(false);
+    setError("");
     setPriceWarning("");
     setSuccessMessage("");
     try {
@@ -373,7 +410,17 @@ export const AnalysisTab = ({ projectKey }: AnalysisTabProps) => {
         throw new Error(error.message || "Failed to run analysis");
       }
 
-      if (!data || !data.results) {
+      if (!data) {
+        throw new Error("No data returned from analysis");
+      }
+
+      // Check if there are no responses
+      if (data.noResponses) {
+        setError(data.message || "No responses found");
+        return;
+      }
+
+      if (!data.results) {
         throw new Error("No analysis results returned");
       }
 
@@ -387,12 +434,11 @@ export const AnalysisTab = ({ projectKey }: AnalysisTabProps) => {
       // Set success message
       setSuccessMessage(`Results saved to ${data.results.analysisTabName} tab in your Google Sheet`);
     } catch (err: any) {
-      // Check if error is about no responses
-      if (err.message && (err.message.toLowerCase().includes("no responses found") || err.message.toLowerCase().includes("no survey responses"))) {
-        setNoResponses(true);
-      } else {
+      setError(err.message || "An error occurred during analysis");
+      // Don't show toast for "no responses" - it's handled in UI
+      if (!err.message?.includes("No responses")) {
         toast({
-          title: "Error",
+          title: "Analysis Failed",
           description: err.message,
           variant: "destructive",
         });
@@ -404,14 +450,49 @@ export const AnalysisTab = ({ projectKey }: AnalysisTabProps) => {
 
   return (
     <div className="space-y-6">
-      <Card className="shadow-card p-6">
+      <Card className="shadow-card p-8">
         <div className="mb-6">
-          <h2 className="text-2xl font-semibold mb-2">Conjoint Analysis</h2>
+          <h2 className="mb-2 text-2xl font-semibold">Analysis & Results</h2>
           <p className="text-sm text-muted-foreground">
-            Run statistical analysis on your survey responses to calculate attribute importances and generate pricing
-            plans
+            Run conjoint analysis on your survey responses to generate optimal pricing plans
           </p>
         </div>
+
+        {/* Attributes and Sample Size Info */}
+        {attributes.length > 0 && (
+          <div className="mb-6 p-4 bg-muted/30 rounded-lg">
+            <h4 className="font-semibold mb-3">Attributes in Survey</h4>
+            <div className="space-y-2 mb-4">
+              {attributes.map((attr, idx) => (
+                <div key={idx} className="flex justify-between items-center text-sm">
+                  <span className="font-medium">{attr.name}</span>
+                  <span className="text-muted-foreground">{attr.levels.length} levels</span>
+                </div>
+              ))}
+            </div>
+            
+            <div className="border-t border-border pt-4 mt-4">
+              <h4 className="font-semibold mb-2">Recommended Sample Sizes</h4>
+              <div className="space-y-1 text-sm">
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">90% Confidence:</span>
+                  <span className="font-medium">{sampleSizes.high} respondents</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">80% Confidence:</span>
+                  <span className="font-medium">{sampleSizes.medium} respondents</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">70% Confidence:</span>
+                  <span className="font-medium">{sampleSizes.low} respondents</span>
+                </div>
+              </div>
+              <p className="text-xs text-muted-foreground mt-3">
+                Based on {attributes.length} attributes, max {Math.max(...attributes.map((a) => a.levels.length), 1)} levels, and {maxTasks} tasks per respondent
+              </p>
+            </div>
+          </div>
+        )}
 
         {checkingDesign && (
           <div className="flex items-center gap-2 text-muted-foreground mb-6">
@@ -576,18 +657,21 @@ export const AnalysisTab = ({ projectKey }: AnalysisTabProps) => {
           </div>
         )}
 
-        {noResponses && (
-          <div className="mt-8 rounded-lg border-2 border-dashed border-border p-8 text-center">
-            <BarChart3 className="mx-auto h-16 w-16 text-muted-foreground mb-4" />
-            <h3 className="text-xl font-semibold mb-2">No Responses Yet</h3>
-            <p className="text-muted-foreground mb-4">You need to collect survey responses before running analysis.</p>
-            <p className="text-sm text-muted-foreground">
-              Go to the <span className="font-medium">Generate Links</span> tab to create and share your survey link.
-            </p>
+        {error && (
+          <div className="mb-6 rounded-lg bg-muted p-6 border-l-4 border-primary">
+            <div className="flex items-start gap-3">
+              <div className="flex-1">
+                <p className="font-semibold mb-2">No Responses Yet</p>
+                <p className="text-sm text-muted-foreground mb-4">{error}</p>
+                <p className="text-sm text-muted-foreground">
+                  Go to the <strong>Generate Links</strong> tab to create and share survey links with respondents.
+                </p>
+              </div>
+            </div>
           </div>
         )}
 
-        {!results && !loading && !noResponses && (
+        {!results && !loading && !error && (
           <div className="mt-8 rounded-lg bg-muted/50 p-6">
             <h3 className="mb-3 text-lg font-semibold">Sample Size Recommendations</h3>
             <p className="text-sm text-muted-foreground mb-4">

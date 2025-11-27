@@ -239,9 +239,10 @@ const SurveyResponse = () => {
   }
 
   const currentTaskData = tasks[currentTask];
-  const numOptions = currentTaskData.alternatives.filter(
+  // Cap at 3 options (A, B, C) plus None
+  const numOptions = Math.min(3, currentTaskData.alternatives.filter(
     (alt) => !Object.values(alt).every((val) => val === "None of these"),
-  ).length;
+  ).length);
 
   return (
     <div className="min-h-screen flex flex-col">

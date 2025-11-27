@@ -114,10 +114,11 @@ Deno.serve(async (req) => {
     const token = await getGoogleSheetsToken();
 
     /* -------------------------------------------------------
-       LOAD SURVEY META (intro + question)
+       LOAD SURVEY META (intro + question + maxTasks)
     ------------------------------------------------------- */
     let introduction = "";
     let question = "Which subscription plan would you prefer?";
+    let maxTasks = 5; // Default value
 
     const metaRes = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/Surveys!A:F`, {
       headers: { Authorization: `Bearer ${token}` },
@@ -131,6 +132,7 @@ Deno.serve(async (req) => {
       if (row) {
         if (row[3]) introduction = row[3];
         if (row[4]) question = row[4];
+        if (row[5]) maxTasks = parseInt(row[5]) || 5;
       }
     }
 
@@ -257,9 +259,16 @@ Deno.serve(async (req) => {
 
     const tasks = Array.from(tasksMap.entries())
       .sort((a, b) => a[0] - b[0])
-      .map(([taskId, alternatives]) => ({ taskId, alternatives }));
+      .map(([taskId, alternatives]) => ({ 
+        taskId, 
+        // Cap at 3 options + none (4 total)
+        alternatives: alternatives.slice(0, 4)
+      }));
 
-    return new Response(JSON.stringify({ surveyId, tasks, attributes, introduction, question }), {
+    // Apply maxTasks cap
+    const cappedTasks = tasks.slice(0, maxTasks);
+
+    return new Response(JSON.stringify({ surveyId, tasks: cappedTasks, attributes, introduction, question }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
       status: 200,
     });
