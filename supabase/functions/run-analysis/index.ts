@@ -7,6 +7,55 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+async function ensureTabExists(sheetId: string, token: string, tabName: string) {
+  // Check if tab exists
+  const sheetResponse = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${sheetId}`, {
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  });
+
+  if (!sheetResponse.ok) {
+    throw new Error("Failed to access spreadsheet");
+  }
+
+  const sheetData = await sheetResponse.json();
+  const existingSheets = sheetData.sheets || [];
+  const tabExists = existingSheets.some((sheet: any) => sheet.properties.title === tabName);
+
+  if (!tabExists) {
+    console.log(`Creating ${tabName} tab...`);
+    const createResponse = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${sheetId}:batchUpdate`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        requests: [
+          {
+            addSheet: {
+              properties: {
+                title: tabName,
+                gridProperties: {
+                  rowCount: 1000,
+                  columnCount: 26,
+                },
+              },
+            },
+          },
+        ],
+      }),
+    });
+
+    if (!createResponse.ok) {
+      const error = await createResponse.text();
+      throw new Error(`Failed to create ${tabName} tab: ${error}`);
+    }
+    console.log(`${tabName} tab created successfully`);
+  }
+}
+
 interface Response {
   responseId: string;
   surveyId: string;
@@ -19,6 +68,93 @@ interface Attribute {
   levels: string[];
   isPriceAttribute?: boolean;
   currency?: string;
+}
+
+// -----------------------------
+// Helper: normalize attribute names
+// -----------------------------
+function normalizeName(name: string): string {
+  return (name || "").toLowerCase().replace(/\s+/g, " ").replace(/[()]/g, "").trim();
+}
+
+// Map Design header names → canonical names from Attributes
+function buildAttrNameMap(attributes: Attribute[], headerNames: string[]): Record<string, string> {
+  const map: Record<string, string> = {};
+
+  headerNames.forEach((header) => {
+    const normHeader = normalizeName(header);
+    let matched: string | null = null;
+
+    // exact match first
+    for (const attr of attributes) {
+      const normAttr = normalizeName(attr.name);
+      if (normAttr === normHeader) {
+        matched = attr.name;
+        break;
+      }
+    }
+
+    // then "starts with" either direction
+    if (!matched) {
+      for (const attr of attributes) {
+        const normAttr = normalizeName(attr.name);
+        if (normHeader.startsWith(normAttr) || normAttr.startsWith(normHeader)) {
+          matched = attr.name;
+          break;
+        }
+      }
+    }
+
+    if (matched) {
+      map[header] = matched;
+    }
+  });
+
+  return map;
+}
+
+// Map raw level values from Design → canonical levels from Attributes
+function canonicalLevel(attrName: string, rawLevel: string, attributes: Attribute[]): string {
+  const val = (rawLevel || "").trim();
+  if (!val) return val;
+
+  const lower = val.toLowerCase();
+
+  // Treat HTML dash / gray span as "None of these"
+  if (
+    lower === "none of these" ||
+    lower.includes("color:gray") ||
+    lower.includes("8212") // &#8212; em dash
+  ) {
+    return "None of these";
+  }
+
+  const attr = attributes.find((a) => a.name === attrName);
+  if (!attr) return val;
+
+  const hasCheck = attr.levels.some((l) => l === "✓" || l === "✔");
+  const hasCross = attr.levels.some((l) => l === "✕" || l === "✖" || l === "X" || l === "x");
+  const hasIncluded = attr.levels.some(
+    (l) => l.toLowerCase().includes("included") && !l.toLowerCase().includes("not included"),
+  );
+  const hasNotIncluded = attr.levels.some((l) => l.toLowerCase().includes("not included"));
+
+  // Map to whatever is in Attributes (icons OR text)
+  if (lower === "included" || val === "✓" || val === "✔") {
+    if (hasCheck) return attr.levels.find((l) => l === "✓" || l === "✔") || val;
+    if (hasIncluded)
+      return (
+        attr.levels.find((l) => l.toLowerCase().includes("included") && !l.toLowerCase().includes("not included")) ||
+        val
+      );
+  }
+
+  if (lower === "not included" || val === "✕" || val === "✖" || lower === "x") {
+    if (hasCross) return attr.levels.find((l) => l === "✕" || l === "✖" || l === "X" || l === "x") || val;
+    if (hasNotIncluded) return attr.levels.find((l) => l.toLowerCase().includes("not included")) || val;
+  }
+
+  return val;
 }
 
 // Generate pricing plans based on utilities
@@ -88,13 +224,11 @@ function generatePlans(
     attributes.forEach((attr) => {
       const levels = sortedLevels[attr.name];
       if (levels && levels.length > 0) {
-        // Pick level based on tier (low tier = low utility, high tier = high utility)
         const levelIdx = Math.min(Math.floor(tierIndex * levels.length), levels.length - 1);
         const selectedLevel = levels[levelIdx];
         features[attr.name] = selectedLevel.level;
         totalUtility += selectedLevel.utility;
 
-        // Track choice reasoning
         if (levelIdx === 0) {
           featureChoices.push(`${attr.name} set to ${selectedLevel.level} for affordability`);
         } else if (levelIdx === levels.length - 1) {
@@ -105,48 +239,38 @@ function generatePlans(
       }
     });
 
-    // Determine pricing based on strategy, goal, and available data
     let willingnessToPay: number;
     let suggestedPrice: number;
 
-    // Determine minimum price floor from available price levels
     const minPrice = availablePriceLevels.length > 0 ? availablePriceLevels[0] : 1;
 
-    // Pricing multipliers based on goal
-    const priceMultiplier = goal === "revenue" ? 0.95 : 0.75; // Revenue: price closer to WTP; Purchases: more aggressive discount
-    const utilityInfluence = goal === "revenue" ? 7 : 3; // Revenue: utilities have more impact on price
+    const priceMultiplier = goal === "revenue" ? 0.95 : 0.75;
+    const utilityInfluence = goal === "revenue" ? 7 : 3;
 
     if (pricingStrategy === "submitted" && priceAttr && availablePriceLevels.length > 0) {
-      // Use submitted pricing levels - assign based on tier
       if (i < availablePriceLevels.length) {
-        // We have a price level for this tier
         suggestedPrice = Math.max(minPrice, availablePriceLevels[i]);
         willingnessToPay = Math.max(minPrice, suggestedPrice + totalUtility * utilityInfluence);
       } else {
-        // Not enough price levels - fall back to utility-based
         const basePrice = availablePriceLevels[availablePriceLevels.length - 1] || 10;
         const utilityMultiplier = goal === "revenue" ? 25 : 15;
         willingnessToPay = Math.max(minPrice, basePrice + totalUtility * utilityMultiplier);
         suggestedPrice = Math.max(minPrice, Math.round(willingnessToPay * priceMultiplier));
       }
     } else if (priceAttr && features[priceAttr.name]) {
-      // Suggested pricing with price attribute context
       const priceLevel = features[priceAttr.name];
       const priceMatch = priceLevel.match(/[\d.]+/);
       const basePrice = priceMatch ? parseFloat(priceMatch[0]) : 50;
 
-      // Calculate willingness to pay and suggest optimized pricing based on goal
       willingnessToPay = Math.max(minPrice, basePrice + totalUtility * utilityInfluence);
       suggestedPrice = Math.max(minPrice, Math.round(willingnessToPay * priceMultiplier));
     } else {
-      // No price attribute - use utility-based estimation
       const basePrice = 10;
       const utilityMultiplier = goal === "revenue" ? 25 : 15;
       willingnessToPay = Math.max(minPrice, basePrice + totalUtility * utilityMultiplier);
       suggestedPrice = Math.max(minPrice, Math.round(willingnessToPay * priceMultiplier));
     }
 
-    // Generate rationale based on actual feature combinations
     const featureDescriptions: string[] = [];
     attributes.forEach((attr) => {
       const levels = sortedLevels[attr.name];
@@ -175,20 +299,17 @@ function generatePlans(
       willingnessToPay,
       currency,
       rationale,
-      totalUtility, // Store for sorting
+      totalUtility,
     });
   }
 
-  // Sort plans based on goal
   if (goal === "revenue") {
-    // For revenue maximization: sort by expected revenue (price * utility as proxy for conversion)
     plans.sort((a, b) => {
       const revenueA = a.suggestedPrice * Math.exp(a.totalUtility / 10);
       const revenueB = b.suggestedPrice * Math.exp(b.totalUtility / 10);
       return revenueA - revenueB;
     });
   } else {
-    // For purchase maximization: sort by expected adoption (utility - price sensitivity)
     plans.sort((a, b) => {
       const adoptionScoreA = a.totalUtility - a.suggestedPrice * 0.1;
       const adoptionScoreB = b.totalUtility - b.suggestedPrice * 0.1;
@@ -196,12 +317,10 @@ function generatePlans(
     });
   }
 
-  // Assign names based on sorted order
   plans.forEach((plan, idx) => {
     plan.name = planNames[idx] || `Plan ${idx + 1}`;
   });
 
-  // Check if "Best" is most expensive - if not, add explanation
   if (plans.length >= 3) {
     const bestPlan = plans[plans.length - 1];
     const mostExpensivePlan = [...plans].sort((a, b) => b.suggestedPrice - a.suggestedPrice)[0];
@@ -219,7 +338,6 @@ function generatePlans(
     }
   }
 
-  // Return plans without totalUtility
   const finalPlans = plans.map(({ totalUtility, ...plan }) => plan);
 
   return { plans: finalPlans, priceMismatchWarning };
@@ -234,11 +352,9 @@ function runConjointAnalysis(
   pricingStrategy: "submitted" | "suggested",
   goal: "revenue" | "purchases",
 ) {
-  // Count how often each level appears when chosen vs not chosen
   const levelChosen: { [key: string]: number } = {};
   const levelNotChosen: { [key: string]: number } = {};
 
-  // Initialize counts
   attributes.forEach((attr) => {
     attr.levels.forEach((level) => {
       const key = `${attr.name}:${level}`;
@@ -247,18 +363,14 @@ function runConjointAnalysis(
     });
   });
 
-  // Process each response
   responses.forEach((resp) => {
     const taskDesign = designData.get(resp.taskId);
     if (!taskDesign) return;
 
-    // For each alternative in this task
     taskDesign.forEach((levels, altId) => {
       const wasChosen = altId === resp.selectedAlt;
 
-      // Count each attribute level
       levels.forEach((level, attrName) => {
-        // Skip "None of these" alternatives
         if (level === "None of these") return;
 
         const key = `${attrName}:${level}`;
@@ -271,7 +383,6 @@ function runConjointAnalysis(
     });
   });
 
-  // Calculate utilities based on selection rates
   const utilities: { [key: string]: number } = {};
   const importances: { [key: string]: number } = {};
 
@@ -285,14 +396,10 @@ function runConjointAnalysis(
       const total = chosen + notChosen;
 
       if (total === 0) {
-        // Level never appeared - assign neutral utility
         utilities[key] = 0;
         levelUtils.push(0);
       } else {
-        // Calculate selection rate
         const selectionRate = chosen / total;
-
-        // Convert to utility using log-odds (logit transformation)
         const adjustedRate = Math.max(0.01, Math.min(0.99, selectionRate));
         const utility = Math.log(adjustedRate / (1 - adjustedRate));
 
@@ -301,24 +408,21 @@ function runConjointAnalysis(
       }
     });
 
-    // Normalize utilities within each attribute (zero-center)
-    const meanUtil = levelUtils.reduce((a, b) => a + b, 0) / (levelUtils.length || 1);
+    const denom = levelUtils.length || 1;
+    const meanUtil = levelUtils.reduce((a, b) => a + b, 0) / denom;
     attr.levels.forEach((level) => {
       const key = `${attr.name}:${level}`;
       utilities[key] = utilities[key] - meanUtil;
     });
 
-    // Recalculate levelUtils after normalization
     const normalizedUtils = attr.levels.map((level) => utilities[`${attr.name}:${level}`]);
 
-    // Calculate importance as range of utilities within attribute
     const maxUtil = Math.max(...normalizedUtils);
     const minUtil = Math.min(...normalizedUtils);
     const range = maxUtil - minUtil;
     importances[attr.name] = range;
   });
 
-  // Normalize importances to percentages
   const totalImportance = Object.values(importances).reduce((a, b) => a + b, 0);
   if (totalImportance > 0) {
     Object.keys(importances).forEach((attr) => {
@@ -326,7 +430,6 @@ function runConjointAnalysis(
     });
   }
 
-  // Generate plans
   const { plans, priceMismatchWarning } = generatePlans(
     numPlans,
     attributes,
@@ -358,9 +461,8 @@ Deno.serve(async (req) => {
     const sheetId = await decryptProjectKey(projectKey);
     const token = await getGoogleSheetsToken();
 
-    // -----------------------------
-    // READ & PARSE ATTRIBUTES TAB
-    // -----------------------------
+    await ensureTabExists(sheetId, token, "Attributes");
+
     const attrResponse = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/Attributes!A:D`, {
       headers: {
         Authorization: `Bearer ${token}`,
@@ -386,7 +488,6 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Robust attribute parsing (handles merged cells)
     const attributesMap = new Map<string, string[]>();
     const priceInfo = new Map<
       string,
@@ -400,7 +501,6 @@ Deno.serve(async (req) => {
     let lastIsPriceAttr: string | null = null;
     let lastCurrency: string | null = null;
 
-    // attrRows[0] is header: [Name, Level, IsPriceAttr, Currency]
     for (let i = 1; i < attrRows.length; i++) {
       const row = attrRows[i];
       const rawName = (row[0] || "").trim();
@@ -411,7 +511,6 @@ Deno.serve(async (req) => {
       const effectiveName = rawName || lastName;
       if (!effectiveName) continue;
 
-      // New attribute block if name present
       if (rawName) {
         lastName = rawName;
         lastIsPriceAttr = rawIsPriceAttr;
@@ -454,9 +553,6 @@ Deno.serve(async (req) => {
       );
     }
 
-    // -----------------------------
-    // READ RESPONSES
-    // -----------------------------
     const respResponse = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/Responses!A:E`, {
       headers: {
         Authorization: `Bearer ${token}`,
@@ -485,7 +581,6 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Parse responses (skip header)
     const allResponses: Response[] = respRows.slice(1).map((row: string[]) => ({
       responseId: row[0],
       surveyId: row[1],
@@ -493,9 +588,6 @@ Deno.serve(async (req) => {
       selectedAlt: parseInt(row[3]),
     }));
 
-    // -----------------------------
-    // READ DESIGN TAB
-    // -----------------------------
     const designResponse = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/Design!A:Z`, {
       headers: {
         Authorization: `Bearer ${token}`,
@@ -517,15 +609,17 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Parse design data structure: taskId -> altId -> attributeName -> level
+    // -----------------------------
+    // Parse Design with canonical names/levels
+    // -----------------------------
+    const headerRow = designRows[0];
+    const rawAttrHeaders = headerRow.slice(2);
+    const headerNameMap = buildAttrNameMap(attributes, rawAttrHeaders);
+    const canonicalAttrHeaders = rawAttrHeaders.map((h) => headerNameMap[h] || h);
+
     const designMap = new Map<string, Map<number, Map<string, string>>>();
     const noneAlternatives = new Map<string, number>();
 
-    // Use attribute names from current Attributes config instead of the Design sheet header.
-    // This keeps analysis consistent even if the Design tab header is stale or labels were renamed.
-    const attrNames = attributes.map((a) => a.name);
-
-    // Skip header and parse design
     for (let i = 1; i < designRows.length; i++) {
       const row = designRows[i];
       const taskId = row[0];
@@ -533,18 +627,17 @@ Deno.serve(async (req) => {
 
       if (!taskId || isNaN(altId)) continue;
 
-      // Initialize task map if needed
       if (!designMap.has(taskId)) {
         designMap.set(taskId, new Map());
       }
 
-      // Parse attribute levels for this alternative
       const altLevels = new Map<string, string>();
       let isNoneAlt = true;
 
-      for (let j = 0; j < attrNames.length and (j + 2) < row.length; j++) {
-        const attrName = attrNames[j];
-        const level = row[j + 2];
+      for (let j = 0; j < canonicalAttrHeaders.length && j < row.length - 2; j++) {
+        const attrName = canonicalAttrHeaders[j];
+        const rawLevel = row[j + 2];
+        const level = canonicalLevel(attrName, rawLevel, attributes);
 
         if (attrName && level) {
           altLevels.set(attrName, level);
@@ -556,7 +649,6 @@ Deno.serve(async (req) => {
 
       designMap.get(taskId)!.set(altId, altLevels);
 
-      // Track "None" alternatives
       if (isNoneAlt) {
         noneAlternatives.set(taskId, altId);
       }
@@ -565,7 +657,6 @@ Deno.serve(async (req) => {
     console.log(`Parsed ${designMap.size} tasks with design data`);
     console.log(`Identified ${noneAlternatives.size} "None" alternatives across tasks`);
 
-    // Filter out responses where "None" was selected
     const responses = allResponses.filter((resp) => {
       const noneAltIndex = noneAlternatives.get(resp.taskId);
       return noneAltIndex === undefined || resp.selectedAlt !== noneAltIndex;
@@ -574,7 +665,6 @@ Deno.serve(async (req) => {
     const filteredCount = allResponses.length - responses.length;
     console.log(`Filtered out ${filteredCount} "None" responses`);
 
-    // Count unique response IDs
     const uniqueResponseIds = new Set(responses.map((r) => r.responseId));
     const totalUniqueResponses = uniqueResponseIds.size;
 
@@ -582,18 +672,13 @@ Deno.serve(async (req) => {
       `Analyzing ${responses.length} response rows from ${totalUniqueResponses} unique respondents (${filteredCount} "None" responses excluded)`,
     );
 
-    // Validate we have design data for analysis
     if (designMap.size === 0) {
       throw new Error("No valid design data found. Cannot calculate utilities without task design information.");
     }
 
-    // ----------------------------------------------------
-    // SAMPLE SIZE GUIDANCE (Orme CBC rule + confidence)
-    // ----------------------------------------------------
     const totalLevels = attributes.reduce((sum, a) => sum + a.levels.length, 0);
     const tasksPerRespondent = designMap.size || 1;
 
-    // Estimate number of non-"None" alternatives per task
     let alternativesPerTask = 0;
     for (const [taskId, altMap] of designMap) {
       const noneAltIndex = noneAlternatives.get(taskId);
@@ -601,14 +686,11 @@ Deno.serve(async (req) => {
       break;
     }
     if (!alternativesPerTask || alternativesPerTask <= 0) {
-      alternativesPerTask = 2; // conservative fallback
+      alternativesPerTask = 2;
     }
 
-    // Orme CBC heuristic (baseline around ~80% confidence)
-    // n ≈ (500 * number_of_levels) / (tasks_per_respondent * alternatives_per_task)
     const baseN80 = Math.ceil((500 * totalLevels) / (tasksPerRespondent * alternativesPerTask));
 
-    // Scale for ~70% and ~90% using Z-ratio on variance
     const Z70 = 1.04;
     const Z80 = 1.28;
     const Z90 = 1.64;
@@ -626,7 +708,6 @@ Deno.serve(async (req) => {
       n90: sampleSize90,
     };
 
-    // Fetch donation data
     let donationData: { average: number; count: number; amounts: number[] } | null = null;
     try {
       const donateResponse = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/Donate!A:E`, {
@@ -640,11 +721,10 @@ Deno.serve(async (req) => {
         const donateRows = donateDataRaw.values || [];
 
         if (donateRows.length > 1) {
-          // Parse donation amounts (skip header)
           const amounts = donateRows
             .slice(1)
             .map((row: string[]) => parseFloat(row[2]))
-            .filter((amount: number) => !isNaN(amount) and amount > 0);
+            .filter((amount: number) => !isNaN(amount) && amount > 0);
 
           if (amounts.length > 0) {
             const sum = amounts.reduce((a: number, b: number) => a + b, 0);
@@ -662,24 +742,13 @@ Deno.serve(async (req) => {
       console.log("No donation data found or error reading Donate tab:", donateError);
     }
 
-    // Run analysis with design data
-    const { utilities, importances, plans, currency, priceMismatchWarning } = runConjointAnalysis(
-      responses,
-      attributes,
-      designMap,
-      numPlans,
-      pricingStrategy,
-      goal,
-    );
+    const results = runConjointAnalysis(responses, attributes, designMap, numPlans, pricingStrategy, goal);
 
-    // Override totalResponses with unique count
-    const totalUnique = new Set(responses.map((r) => r.responseId)).size;
+    results.totalResponses = totalUniqueResponses;
 
-    // Create analysis timestamp
     const timestamp = new Date().toISOString().replace(/[:.]/g, "-").split("T")[0];
     const analysisTabName = `Analysis_${timestamp}`;
 
-    // Create analysis tab
     try {
       await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${sheetId}:batchUpdate`, {
         method: "POST",
@@ -703,11 +772,10 @@ Deno.serve(async (req) => {
       console.warn("Analysis tab may already exist");
     }
 
-    // Write analysis results
-    const analysisRows: any[] = [
+    const analysisRows = [
       ["Conjoint Analysis Results"],
       [""],
-      ["Total Unique Respondents:", totalUnique.toString()],
+      ["Total Unique Respondents:", results.totalResponses.toString()],
       ["Analysis Date:", new Date().toLocaleString()],
       [""],
       ["Sample Size Guidance (Orme CBC rule, approximate)"],
@@ -724,37 +792,31 @@ Deno.serve(async (req) => {
       ["Attribute", "Importance (%)"],
     ];
 
-    Object.entries(importances).forEach(([attr, imp]) => {
-      analysisRows.push([attr, (imp as number).toFixed(2)]);
+    Object.entries(results.importances).forEach(([attr, imp]) => {
+      analysisRows.push([attr, imp.toFixed(2)]);
     });
 
     analysisRows.push([""], ["Attribute Level Utilities"], ["Attribute:Level", "Utility"]);
 
-    Object.entries(utilities).forEach(([key, util]) => {
-      analysisRows.push([key, (util as number).toFixed(3)]);
+    Object.entries(results.utilities).forEach(([key, util]) => {
+      analysisRows.push([key, util.toFixed(3)]);
     });
 
-    // Add plans section
-    if (plans && plans.length > 0) {
+    if (results.plans && results.plans.length > 0) {
       analysisRows.push(
         [""],
         ["Recommended Plans"],
         ["Plan Name", "Suggested Price", "Willingness to Pay", "Features"],
       );
 
-      plans.forEach((plan: any) => {
+      results.plans.forEach((plan) => {
         const featuresStr = Object.entries(plan.features)
           .map(([attr, level]) => `${attr}: ${level}`)
           .join("; ");
         analysisRows.push([plan.name, `$${plan.suggestedPrice}`, `$${plan.willingnessToPay.toFixed(2)}`, featuresStr]);
       });
-
-      if (priceMismatchWarning) {
-        analysisRows.push([""], ["Notes"], [priceMismatchWarning]);
-      }
     }
 
-    // Add donation statistics if available
     if (donationData && donationData.count > 0) {
       analysisRows.push(
         [""],
@@ -784,13 +846,13 @@ Deno.serve(async (req) => {
       JSON.stringify({
         success: true,
         results: {
-          importances,
-          utilities,
-          totalResponses: totalUnique,
+          importances: results.importances,
+          utilities: results.utilities,
+          totalResponses: results.totalResponses,
           analysisTabName,
-          plans,
-          currency,
-          priceMismatchWarning,
+          plans: results.plans,
+          currency: results.currency,
+          priceMismatchWarning: results.priceMismatchWarning,
           donationData,
           sampleSize,
         },
