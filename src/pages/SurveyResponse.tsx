@@ -307,16 +307,21 @@ const SurveyResponse = () => {
                         <td className="p-3 text-sm text-muted-foreground">{attr.description || ""}</td>
 
                         {currentTaskData.alternatives.slice(0, numOptions).map((alt, altIdx) => {
-                          // Normalize the attribute name
+                          // Normalize attribute name
                           const normalizedAttr = attr.name?.trim().toLowerCase();
 
-                          // Normalize the alternative keys (e.g. remove spaces, lowercase)
+                          // Normalize alternative keys
                           const normalizedAlt = Object.fromEntries(
-                            Object.entries(alt).map(([key, val]) => [key.trim().toLowerCase(), val]),
+                            Object.entries(alt).map(([key, val]) => [key.trim().toLowerCase(), val ?? ""]),
                           );
 
                           // Lookup using normalized key
-                          const value = normalizedAlt[normalizedAttr];
+                          let value = normalizedAlt[normalizedAttr];
+
+                          // Prevent blank cells (React collapses empty <td>s on refresh)
+                          if (value === undefined || value === null || value === "") {
+                            value = "-"; // fallback to visible placeholder
+                          }
 
                           return (
                             <td key={altIdx} className="p-3 text-center">
