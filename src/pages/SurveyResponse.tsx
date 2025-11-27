@@ -327,7 +327,9 @@ const SurveyResponse = () => {
                 <table className="w-full border-collapse">
                   <thead>
                     <tr>
-                      <th className="p-3"></th>
+                      <th className="p-3">
+                        <strong>Which would you buy?</strong>
+                      </th>
                       <th className="p-3"></th>
                       {Array.from({ length: numOptions }, (_, i) => (
                         <th key={i} className="p-3">
