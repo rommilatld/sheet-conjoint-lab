@@ -273,7 +273,7 @@ export const SurveyPreview = ({ attributes, projectKey }: SurveyPreviewProps) =>
                     {/*             Option {String.fromCharCode(65 + i)} Table Preview */}
                   </th>
                 ))}
-                        <th className="text-center p-3 font-semibold">None</th>*/}
+                {/*      <th className="text-center p-3 font-semibold">None</th>*/}
               </tr>
             </thead>
 
@@ -293,7 +293,7 @@ export const SurveyPreview = ({ attributes, projectKey }: SurveyPreviewProps) =>
                       );
                     })}
 
-         {/* Table Preview            <td className="p-3 text-center text-muted-foreground text-sm">-</td>*/}
+                    {/* Table Preview            <td className="p-3 text-center text-muted-foreground text-sm">-</td>*/}
                   </tr>
                 );
               })}
