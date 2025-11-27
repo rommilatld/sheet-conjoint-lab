@@ -24,9 +24,7 @@ Deno.serve(async (req) => {
       const token = await getGoogleSheetsToken();
 
       const response = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/Attributes!A:F`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
+        headers: { Authorization: `Bearer ${token}` },
       });
 
       if (!response.ok) {
@@ -42,44 +40,57 @@ Deno.serve(async (req) => {
       const data = await response.json();
       const rows = data.values || [];
 
-      // Parse attributes from rows
+      // ---------------------------------------------------------------------
+      // FIX: Robust parsing for Sheets with merged attribute names
+      // ---------------------------------------------------------------------
       const attributesMap = new Map();
       const metadataMap = new Map();
+
+      let lastName: string | null = null;
+      let lastMeta: any = null;
+
       for (let i = 1; i < rows.length; i++) {
         const [name, level, isPriceAttr, currency, description, type] = rows[i];
 
         const cleanName = (name || "").trim();
         const cleanLevel = (level || "").trim();
 
-        // Skip rows with no attribute name
-        if (!cleanName) continue;
+        // Use last seen attribute name if current row name is blank (merged cells)
+        const effectiveName = cleanName || lastName;
+        if (!effectiveName) continue; // still empty → skip row
 
-        // Initialize attribute entry if first time seeing this attribute
-        if (!attributesMap.has(cleanName)) {
-          attributesMap.set(cleanName, []);
-          metadataMap.set(cleanName, {
+        // New attribute block when name is not empty
+        if (cleanName) {
+          lastName = cleanName;
+          lastMeta = {
             isPriceAttribute: isPriceAttr === "TRUE",
             currency: currency || "USD",
             description: description || "",
             type: type || "standard",
-          });
+          };
+
+          if (!attributesMap.has(cleanName)) {
+            attributesMap.set(cleanName, []);
+            metadataMap.set(cleanName, lastMeta);
+          }
         }
 
-        // Only push level if it exists
+        // Add level (even if name cell was blank)
         if (cleanLevel) {
-          attributesMap.get(cleanName).push(cleanLevel);
+          attributesMap.get(effectiveName).push(cleanLevel);
         }
       }
 
+      // Final output array
       const attributes = Array.from(attributesMap.entries()).map(([name, levels]) => {
-        const metadata = metadataMap.get(name) || {};
+        const meta = metadataMap.get(name) || {};
         return {
           name,
           levels,
-          isPriceAttribute: metadata.isPriceAttribute || false,
-          currency: metadata.currency || "USD",
-          description: metadata.description || "",
-          type: metadata.type || "standard",
+          isPriceAttribute: meta.isPriceAttribute || false,
+          currency: meta.currency || "USD",
+          description: meta.description || "",
+          type: meta.type || "standard",
         };
       });
 
@@ -91,7 +102,9 @@ Deno.serve(async (req) => {
       });
     } catch (googleError) {
       console.warn("Google Sheets read failed, using in-memory storage:", googleError);
+
       const attributes = getFromMemory(sheetId);
+
       console.log(`Loaded ${attributes.length} attributes from in-memory storage`);
 
       return new Response(JSON.stringify({ attributes }), {
@@ -102,6 +115,7 @@ Deno.serve(async (req) => {
   } catch (error) {
     console.error("Error getting attributes:", error);
     const errorMessage = error instanceof Error ? error.message : "Unknown error";
+
     return new Response(JSON.stringify({ error: errorMessage }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
       status: 400,
