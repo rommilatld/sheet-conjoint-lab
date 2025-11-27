@@ -370,7 +370,7 @@ const SurveyResponse = () => {
               <div className="border-t-2 border-border pt-6 mt-8">
                 <div className="bg-muted/30 rounded-lg p-6">
                   <Label htmlFor="donation" className="text-base font-semibold mb-3 block">
-                    Instead of subscribing, I'd rather donate this amount
+                    If you’d rather not subscribe, what amount would you donate instead?
                   </Label>
 
                   <div className="flex gap-3 items-end">
