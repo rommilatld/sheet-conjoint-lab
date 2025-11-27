@@ -270,7 +270,7 @@ export const SurveyPreview = ({ attributes, projectKey }: SurveyPreviewProps) =>
                 <th className="text-left p-3 font-semibold">Description</th>
                 {Array.from({ length: numOptions }, (_, i) => (
                   <th key={i} className="text-center p-3 font-semibold">
-                    {/*             Option {String.fromCharCode(65 + i)} Table Preview */}
+                    Option {String.fromCharCode(65 + i)}
                   </th>
                 ))}
                 {/*      <th className="text-center p-3 font-semibold">None</th>*/}
