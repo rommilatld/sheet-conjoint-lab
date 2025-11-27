@@ -484,7 +484,17 @@ Deno.serve(async (req) => {
     const respRows = respData.values || [];
 
     if (respRows.length <= 1) {
-      throw new Error("No responses found. Please collect survey responses first.");
+      return new Response(
+        JSON.stringify({ 
+          error: "No responses found",
+          message: "No survey responses have been collected yet. Share your survey links and come back once respondents have completed the survey.",
+          noResponses: true
+        }),
+        { 
+          status: 200,
+          headers: { ...corsHeaders, "Content-Type": "application/json" } 
+        }
+      );
     }
 
     // Parse responses (skip header)
